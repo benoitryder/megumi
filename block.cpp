@@ -1,0 +1,22 @@
+#include "device.h"
+#include "block.h"
+
+
+Block::Block(Device* dev, const std::string& name, ioptr_t io_addr, ivnum_t iv_base):
+    device_(dev), name_(name), io_addr_(io_addr), iv_base_(iv_base)
+{
+  if(iv_base_ == 0 && iv_count() != 0) {
+    throw BlockError(*this, "invalid interrupt vector number: 0");
+  }
+}
+
+Block::~Block()
+{
+}
+
+
+void Block::setIvLvl(ivnum_t iv, IntLvl lvl) const
+{
+  device_->setIvLvl(iv+iv_base(), lvl);
+}
+
