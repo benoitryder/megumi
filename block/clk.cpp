@@ -40,7 +40,12 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
     if(vsclk > SCLKSEL_PLL) {
       LOGF(ERROR, "invalid SCLKSEL value");
     } else if(device_->ccpState() & Device::CCP_IOREG) {
-      sclk_ = vsclk;
+      if(vsclk == SCLKSEL_XOSC || vsclk == SCLKSEL_XOSC) {
+        //TODO
+        LOGF(WARNING, "XOSC and PLL clock sources not supported");
+      } else {
+        sclk_ = vsclk;
+      }
       //TODO takes 2 old clock cycles and 2 new clock cycles
       //TODO don't assume clock sources are always stable
     } else {
