@@ -87,7 +87,7 @@ template <unsigned B, unsigned N=1, typename T=uint8_t>
 struct BitField
 {
   static_assert(!std::numeric_limits<T>::is_signed, "T is not unsigned");
-  static_assert(std::numeric_limits<T>::digits >= (long)B+N, "T is too short");
+  static_assert(std::numeric_limits<T>::digits >= (int)(B+N), "T is too short");
   static constexpr T mask = (1 << N)-1;
   T data;
   BitField& operator=(T v) { data = (data & ~(mask << B)) | ((N == 1 ? !!v : (v & mask)) << B); return *this; }
@@ -100,8 +100,8 @@ template <typename S, typename U, unsigned nbits=std::numeric_limits<U>::digits>
 S unsigned_to_signed(U v) {
   static_assert(std::numeric_limits<S>::is_signed, "S is not signed");
   static_assert(!std::numeric_limits<U>::is_signed, "U is not unsigned");
-  static_assert(std::numeric_limits<S>::digits >= (long)nbits-1, "S non-sign part is shorter than nbits");
-  static_assert(std::numeric_limits<U>::digits >= (long)nbits-1, "U is shorter than nbits");
+  static_assert(std::numeric_limits<S>::digits >= (int)nbits-1, "S non-sign part is shorter than nbits");
+  static_assert(std::numeric_limits<U>::digits >= (int)nbits-1, "U is shorter than nbits");
   return (v & (1 << (nbits-1))) ? (S)v - (1 << nbits) : v;
 }
 
