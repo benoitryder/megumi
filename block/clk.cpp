@@ -39,8 +39,12 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
     SCLKSEL vsclk = static_cast<SCLKSEL>(v & 0x7);
     if(vsclk > SCLKSEL_PLL) {
       LOGF(ERROR, "invalid SCLKSEL value");
-    } else {
+    } else if(device_->ccpState() & Device::CCP_IOREG) {
       sclk_ = vsclk;
+      //TODO takes 2 old clock cycles and 2 new clock cycles
+      //TODO don't assume clock sources are always stable
+    } else {
+      LOGF(ERROR, "cannot set CLK.CTR: protected by CCP");
     }
   } else if(addr == 0x01 && !locked_) { // PSCTRL
     PSCTRL vreg;
