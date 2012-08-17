@@ -27,6 +27,12 @@ class OSC: public Block
   virtual void reset();
   virtual void step();
 
+  enum PLLSRC {
+    PLLSRC_RC2M = 0,
+    PLLSRC_RC32M = 2,
+    PLLSRC_XOSC = 3,
+  };
+
  private:
   union CTRL {
     uint8_t data;
@@ -45,6 +51,30 @@ class OSC: public Block
     BitField<4> xoscrdy;
     BitField<5> pllrdy;
   } status_;
+
+  union XOSCCTRL {
+    uint8_t data;
+    BitField<0,4> xoscsel_;
+    BitField<5,1> x32kplm_;
+    BitField<6,2> frqrange_;
+  } xoscctrl_;
+
+  union XOSCFAIL {
+    uint8_t data;
+    BitField<0> xoscfden;
+    BitField<1> xoscfdif;
+  } xoscfail_;
+
+  uint8_t rc32kcal_;
+
+  PLLSRC pllsrc_;
+  uint8_t pllfac_;
+
+  union DFLLCTRL {
+    uint8_t data;
+    BitField<0> rc2mcref;
+    BitField<1> rc32mcref;
+  } dfllctrl_;
 
 };
 
