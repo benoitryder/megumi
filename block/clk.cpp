@@ -45,6 +45,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
         LOGF(WARNING, "XOSC and PLL clock sources not supported");
       } else {
         sclk_ = vsclk;
+        updateFrequencies();
       }
       //TODO takes 2 old clock cycles and 2 new clock cycles
       //TODO don't assume clock sources are always stable
@@ -58,10 +59,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
       LOGF(ERROR, "invalid PSADIV value");
     } else {
       psctrl_.data = vreg.data;
-      // keep prescalerX_div_ on sync
-      prescalerA_div_ = 1 << psctrl_.psadiv;
-      prescalerB_div_ = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
-      prescalerC_div_ = (1 << (psctrl_.psbcdiv & 1));
+      updateFrequencies();
     }
   } else if(addr == 0x02) { // LOCK
     if(!locked_ && v) {
@@ -92,16 +90,42 @@ void CLK::reset()
 {
   sclk_ = SCLKSEL_RC2M;
   psctrl_.data = 0;
-  prescalerA_div_ = 1;
-  prescalerB_div_ = 1;
-  prescalerC_div_ = 1;
   locked_ = false;
   rtcsrc_ = RTCSRC_ULP;
   rtcen_ = false;
+  updateFrequencies();
 }
 
 void CLK::step()
 {
+}
+
+
+void CLK::updateFrequencies()
+{
+  unsigned int f_sys;
+  switch(sclk_) {
+    case SCLKSEL_RC2M:
+      f_sys = 2000000;
+      break;
+    case SCLKSEL_RC32M:
+      f_sys = 32000000;
+      break;
+    case SCLKSEL_RC32K:
+      f_sys = 32768;
+      break;
+    case SCLKSEL_XOSC:
+    case SCLKSEL_PLL:
+      // not reachable, check is made earlier
+      throw BlockError(*this, "unsupported SCLKSEL value");
+  }
+
+  unsigned int prescalerA = 1 << psctrl_.psadiv;
+  unsigned int prescalerB = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
+  unsigned int prescalerC = (1 << (psctrl_.psbcdiv & 1));
+  f_per4_ = f_sys * prescalerA;
+  f_per2_ = f_per4_ * prescalerB;
+  f_cpu_ = f_per_ = f_per2_ * prescalerC;
 }
 
 

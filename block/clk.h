@@ -38,6 +38,9 @@ class CLK: public Block
   };
 
  private:
+  /// Update frequencies after configuration change
+  void updateFrequencies();
+
   SCLKSEL sclk_;
 
   union PSCTRL {
@@ -46,15 +49,17 @@ class CLK: public Block
     BitField<2,5> psadiv;
   } psctrl_;
 
-  // these values are redundant with psctrl_
-  // they must be kept in sync
-  unsigned int prescalerA_div_;
-  unsigned int prescalerB_div_;
-  unsigned int prescalerC_div_;
-
   bool locked_;
   RTCSRC rtcsrc_;
   bool rtcen_;
+
+  // computed clock frequencies
+  // these values must be kept in sync with register values
+
+  unsigned int f_cpu_;
+  unsigned int f_per_; // equal to f_cpu_
+  unsigned int f_per2_;
+  unsigned int f_per4_;
 };
 
 
