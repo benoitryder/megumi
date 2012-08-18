@@ -1516,6 +1516,27 @@ void Device::connectBlock(Block* block)
 }
 
 
+
+void Device::setSP(uint16_t sp)
+{
+  if(sp >= dataMemSize()) {
+    LOGF(ERROR, "invalid SP value (overflow): 0x%02X") % sp;
+  } else {
+    cpu_.sp_ = sp;
+  }
+}
+
+void Device::setPC(flashptr_t pc)
+{
+  if(pc >= flash_size_) {
+    LOGF(ERROR, "invalid PC value (overflow): 0x%X") % pc;
+    throw std::runtime_error("PC overflow");
+  } else {
+    cpu_.pc_ = pc;
+  }
+}
+
+
 uint8_t Device::getDataMem(memptr_t addr)
 {
   if(addr < mem_io_size_) {

@@ -31,16 +31,7 @@ class CPU: public Block
     return (ccp_ioreg_cycles_ ? 0x01 : 0) | (ccp_spm_cycles_ ? 0x02 : 0);
   }
 
- private:
-  uint8_t ccp_ioreg_cycles_;  ///< Timeout in cycles for I/O register protection
-  uint8_t ccp_spm_cycles_;  ///< Timeout in cycles for SPM protection
-  uint8_t rampd_;
-  uint8_t rampx_;
-  uint8_t rampy_;
-  uint8_t rampz_;
-  uint8_t eind_;
-  uint16_t sp_;
-  union {
+  union SREG {
     uint8_t data;
     BitField<0> C;
     BitField<1> Z;
@@ -50,7 +41,18 @@ class CPU: public Block
     BitField<5> H;
     BitField<6> T;
     BitField<7> I;
-  } sreg_;
+  };
+
+ private:
+  uint8_t ccp_ioreg_cycles_;  ///< Timeout in cycles for I/O register protection
+  uint8_t ccp_spm_cycles_;  ///< Timeout in cycles for SPM protection
+  uint8_t rampd_;
+  uint8_t rampx_;
+  uint8_t rampy_;
+  uint8_t rampz_;
+  uint8_t eind_;
+  uint16_t sp_;
+  SREG sreg_;
 
   const uint8_t ramp_mask_;  ///< Mask for RAMP writes
   const uint8_t eind_mask_;  ///< Mask for EIND writes

@@ -36,6 +36,9 @@ class Device
     bool has_exsram;
   };
 
+  typedef std::array<uint8_t, 32> RegFile;
+  typedef block::CPU::SREG SREG;
+
   /// Initialize constant members, connect blocks
   Device(const ModelConf& conf);
   virtual ~Device();
@@ -72,6 +75,30 @@ class Device
 
   /// Return the device model name
   virtual const char* model_name() const = 0;
+
+  // General accessors, needed notably by the gdbserver
+  const RegFile& regfile() const { return regfile_; }
+  RegFile& regfile() { return regfile_; }
+  const SREG& getSREG() const { return cpu_.sreg_; }
+  uint16_t getSP() const { return cpu_.sp_; }
+  flashptr_t getPC() const { return cpu_.pc_; }
+  void setSREG(uint8_t sreg) { cpu_.sreg_.data = sreg; }
+  void setSP(uint16_t sp);
+  void setPC(flashptr_t pc);
+  const std::vector<uint16_t>& flash_data() const { return flash_data_; }
+  std::vector<uint16_t>& flash_data() { return flash_data_; }
+
+  /// Return data memory size
+  memptr_t dataMemSize() const { return mem_exsram_start_ + mem_exsram_size_; }
+  /// Read data memory value
+  uint8_t getDataMem(memptr_t addr);
+  /// Write data memory value
+  void setDataMem(memptr_t addr, uint8_t v);
+
+  /// Read I/O memory value
+  uint8_t getIoMem(ioptr_t addr);
+  /// Write I/O memory value
+  void setIoMem(ioptr_t addr, uint8_t v);
 
  private:
   /** @brief Execute the next program instruction
@@ -124,16 +151,6 @@ class Device
   /// Return block handling a given IV, or \e nullptr
   Block* getIvBlock(ivnum_t iv);
 
-  /// Read data memory value
-  uint8_t getDataMem(memptr_t addr);
-  /// Write data memory value
-  void setDataMem(memptr_t addr, uint8_t v);
-
-  /// Read I/O memory value
-  uint8_t getIoMem(ioptr_t addr);
-  /// Write I/O memory value
-  void setIoMem(ioptr_t addr, uint8_t v);
-
   /** @brief Return a pointer to the stack data
    * @note Since C++11, vector data is ensured to be stored sequentially. Thus
    * we can safely take and return the address for later write use.
@@ -146,7 +163,7 @@ class Device
 
   /// Register file
   union {
-    std::array<uint8_t, 32> regfile_;
+    RegFile regfile_;
     struct {
       Register<16> reg01_; // used by some opcodes
       uint8_t _undefined0[24];
