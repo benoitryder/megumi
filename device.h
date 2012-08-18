@@ -13,6 +13,8 @@
 #include "common.h"
 #include "block.h"
 #include "block/cpu.h"
+#include "block/clk.h"
+#include "block/osc.h"
 #include "block/pmic.h"
 #include "block/gpior.h"
 
@@ -185,6 +187,8 @@ class Device
 
   // blocks
   block::CPU cpu_;
+  block::CLK clk_;
+  block::OSC osc_;
   block::PMIC pmic_;
   block::GPIOR gpior_;
 };

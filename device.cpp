@@ -21,6 +21,8 @@ Device::Device(const ModelConf& conf):
     sram_data_(mem_sram_size_),
     // blocks
     cpu_(this),
+    clk_(this),
+    osc_(this),
     pmic_(this),
     gpior_(this)
 {
@@ -43,6 +45,8 @@ Device::Device(const ModelConf& conf):
 
   // connect blocks
   connectBlock(&cpu_);
+  connectBlock(&clk_);
+  connectBlock(&osc_);
   connectBlock(&pmic_);
   connectBlock(&gpior_);
 }
