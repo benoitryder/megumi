@@ -77,6 +77,7 @@ void Device::step()
 {
   // Step order is important to ensure an instruction is executed before any
   // pending interruption is served.
+  breaked_ = false;
 
   // check for pending interruptions
   if(instruction_cycles_ == 0 && !interrupt_wait_instruction_ && !cpu_.sreg_.I) {
@@ -1440,7 +1441,7 @@ unsigned int Device::executeNextInstruction()
   // BREAK
   else if(opcode == 0x9598) {
     DLOGF_OPCODE("BREAK");
-    //TODO
+    breaked_ = true;
     cpu_.pc_++;
   }
   // DES

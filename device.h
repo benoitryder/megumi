@@ -60,6 +60,8 @@ class Device
   /// Return CCP state as read in the I/O register
   uint8_t ccpState() const { return cpu_.ccpState(); }
 
+  bool breaked() const { return breaked_; }
+
 
   /** @brief Set, clear or update an interrupt
    *
@@ -201,6 +203,8 @@ class Device
     InterruptQueue nmi;
   } iv_pending_;
 
+  /// Set on BREAK, reset before each step
+  bool breaked_;
 
   // blocks
   block::CPU cpu_;
