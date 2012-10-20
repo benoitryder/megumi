@@ -2,7 +2,21 @@
 #include <iomanip>
 #include <sys/time.h>
 #include <time.h>
+#include <string.h>
 #include "log.h"
+
+#ifdef __WIN32
+static struct ::tm* localtime_r(const time_t* timep, struct ::tm* tm)
+{
+  struct ::tm* tmp = ::localtime(timep);
+  memset(tm, 0, sizeof(*tm));
+  if(tmp) {
+    tmp = tm;
+  }
+  return tmp;
+}
+#endif
+
 
 namespace Log {
 
@@ -28,7 +42,9 @@ Message::Message(Severity severity):
   struct ::timeval tnow;
   ::gettimeofday(&tnow, NULL);
   struct ::tm tloc;
-  localtime_r(&tnow.tv_sec, &tloc);
+  time_t timep;
+  localtime_r(&timep, &tloc);
+  tnow.tv_sec = timep;
 
   stream_
       << std::setfill('0')

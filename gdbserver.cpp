@@ -1,7 +1,14 @@
+#ifdef __WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#undef ERROR
+#define close closesocket
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#endif
 #include <errno.h>
 #include <string.h>
 #include "gdbserver.h"
@@ -113,20 +120,33 @@ GdbServer::GdbServer(Device* dev):
 
 GdbServer::~GdbServer()
 {
+#ifdef __WIN32
+  WSACleanup();
+#endif
 }
 
 
 void GdbServer::run(int port)
 {
+#ifdef __WIN32
+  WSADATA wsa_data;
+  WSAStartup(MAKEWORD(2,2), &wsa_data);
+#endif
+
   // initialize server socket
   int sock_server = ::socket(PF_INET, SOCK_STREAM, 0);
   if(sock_server < 0) {
     throw GdbServerError(errno, "failed to create server socket");
   }
   int optval = 1;
-  ::setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+#ifdef __WIN32
+  const char* optval_ptr = (char*)&optval;
+#else
+  const int* optval_ptr = &optval;
+#endif
+  ::setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, optval_ptr, sizeof(optval));
   // enabling "nodelay" provide a huge boost of communication speed
-  ::setsockopt(sock_server, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval));
+  ::setsockopt(sock_server, IPPROTO_TCP, TCP_NODELAY, optval_ptr, sizeof(optval));
 
   struct ::sockaddr_in addr = {
     .sin_family = AF_INET,
