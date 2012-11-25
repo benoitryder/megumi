@@ -9,6 +9,7 @@
 #include <array>
 #include <set>
 #include <memory>
+#include <functional>
 #include <stdexcept>
 #include "common.h"
 #include "block.h"
@@ -50,8 +51,18 @@ class Device
    */
   void reset();
 
-  /// Process the next cycle
+  /** @brief Advance the SYS clock, process clock events
+   *
+   * The SYS clock is advanced to the tick of the next event.
+   * All events for this tick are executed.
+   *
+   * @note There should always be at least one scheduled event (for CPU
+   * instructions).
+   */
   void step();
+
+  /// Execute a CPU clock cycle
+  void stepCPU();
 
   /// CCP state bitmask values
   static const uint8_t CCP_IOREG = 0x1;
@@ -60,6 +71,7 @@ class Device
   /// Return CCP state as read in the I/O register
   uint8_t ccpState() const { return cpu_.ccpState(); }
 
+  unsigned int clk_sys_tick() const { return clk_sys_tick_; }
   bool breaked() const { return breaked_; }
 
 
@@ -101,6 +113,30 @@ class Device
   uint8_t getIoMem(ioptr_t addr);
   /// Write I/O memory value
   void setIoMem(ioptr_t addr, uint8_t v);
+
+
+  /// Clock types for scheduling
+  enum class ClockType {
+    CPU,
+    PER, PER2, PER4,
+    ASY,
+  };
+  /// Callback for clock events
+  typedef std::function<void()> ClockCallback;
+  /** @brief Schedule a clock event
+   *
+   * @param clock  clock the event is scheduled for
+   * @param cb  event callback
+   * @param period  event period, 0 for non-repeated ones
+   * @param ticks  ticks before the first execution
+   * @param priority  event priority
+   */
+  void schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
+
+  /** @brief Reschedule tasks after a clock configuration update
+   * @note Clock changes must be aligned on clock ticks.
+   */
+  void onClockConfigChange();
 
  private:
   /** @brief Execute the next program instruction
@@ -205,6 +241,43 @@ class Device
 
   /// Set on BREAK, reset before each step
   bool breaked_;
+
+
+  /// Current SYS tick
+  unsigned int clk_sys_tick_;
+
+  /// Clock event object
+  struct ClockEvent {
+    ClockType clock; ///< Clock the event is scheduled for
+    ClockCallback callback;  ///< Event callback
+    unsigned int period;  ///< Event period in clock ticks, 0 for non-repeated tasks
+    /** @brief Execution priority
+     *
+     * Event with lowest priority is executed first.
+     * The following typical priorities are used:
+     *  - 10: default peripheral handling
+     *  - 100: CPU instructions
+     */
+    unsigned int priority;
+    unsigned int tick;  ///< Due tick
+    unsigned int scale;  ///< Internal ticks per clock ticks
+
+    /// Operator for ClockQueue sorting, lower events are executed later
+    bool operator<(const ClockEvent& o) const {
+      return tick > o.tick || (tick == o.tick && priority < o.priority);
+    }
+  };
+  /// Get clock event scale for a given clock type
+  unsigned int getClockScale(ClockType clock) const;
+  /** @brief Clock event queue
+   *
+   * The vector behave as a priority queue with the help of \c std::*_heap
+   * functions.
+   */
+  typedef std::vector<ClockEvent> ClockQueue;
+  /// Events scheduled on the SYS clock or derived clocks
+  ClockQueue clk_sys_queue_;
+
 
   // blocks
   block::CPU cpu_;

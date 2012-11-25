@@ -1,4 +1,5 @@
 #include <cassert>
+#include <algorithm>
 #include "device.h"
 #include "log.h"
 
@@ -61,6 +62,12 @@ void Device::reset()
   // reset state
   instruction_cycles_ = 0;
   interrupt_wait_instruction_ = true;
+  clk_sys_tick_ = 0;
+  clk_sys_queue_.clear();
+
+  // reset CLK first for schedule()
+  clk_.reset();
+  schedule(ClockType::CPU, std::bind(&Device::stepCPU, this), 1, 1, 100);
 
   // reset blocks
   for(auto it: blocks_) {
@@ -75,6 +82,32 @@ void Device::reset()
 
 void Device::step()
 {
+  assert(!clk_sys_queue_.empty());
+  clk_sys_tick_ = clk_sys_queue_.front().tick;
+
+  for(;;) {
+    ClockEvent& ev = clk_sys_queue_.front();
+    if(ev.tick > clk_sys_tick_) {
+      break;
+    }
+    ev.callback();
+    // ev becomes invalid after updating the vector
+    if(ev.period) {
+      ev.tick += ev.period * ev.scale;
+      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+    } else {
+      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      clk_sys_queue_.pop_back();
+    }
+  }
+}
+
+
+void Device::stepCPU()
+{
+  //TODO handle halted CPU
+
   // Step order is important to ensure an instruction is executed before any
   // pending interruption is served.
   breaked_ = false;
@@ -87,10 +120,7 @@ void Device::step()
     }
   }
 
-  // step blocks
-  for(auto it: blocks_) {
-    it.second->step();
-  }
+  //TODO:check Before clock handling blocks were stepped here
 
   // execute instruction
   while(instruction_cycles_ == 0) {
@@ -1591,4 +1621,51 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
   block->setIo(addr - block->io_addr(), v);
 }
 
+
+void Device::schedule(ClockType clock, ClockCallback cb, unsigned int period, unsigned int ticks, unsigned int priority)
+{
+  assert(cb);
+  unsigned int scale = getClockScale(clock);
+  clk_sys_queue_.push_back({ clock, cb, period, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
+  std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+}
+
+
+void Device::onClockConfigChange()
+{
+  for(auto& ev: clk_sys_queue_) {
+    unsigned int scale = getClockScale(ev.clock);
+    if(ev.scale == scale) {
+      continue; // nothing to do
+    }
+    // this method should only be called on slowest clock tick
+    assert((ev.tick - clk_sys_tick_) % ev.scale == 0);
+    unsigned int dt = (ev.tick - clk_sys_tick_ + ev.scale-1) / ev.scale;
+    ev.tick = clk_sys_tick_ + dt * scale;
+    ev.scale = scale;
+  }
+  std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+}
+
+
+unsigned int Device::getClockScale(ClockType clock) const
+{
+  switch(clock) {
+    case ClockType::CPU:
+    case ClockType::PER:
+      return clk_.prescaler_a_ * clk_.prescaler_b_ * clk_.prescaler_c_;
+      break;
+    case ClockType::PER2:
+      return clk_.prescaler_a_ * clk_.prescaler_b_;
+      break;
+    case ClockType::PER4:
+      return clk_.prescaler_a_;
+      break;
+    case ClockType::ASY:
+      LOG(WARNING) << "ASY clock not supported";
+      return 1;
+    default:
+      throw std::runtime_error("invalid scheduled clock type");
+  }
+}
 

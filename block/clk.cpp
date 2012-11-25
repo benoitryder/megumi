@@ -96,10 +96,6 @@ void CLK::reset()
   updateFrequencies();
 }
 
-void CLK::step()
-{
-}
-
 
 void CLK::updateFrequencies()
 {
@@ -120,12 +116,14 @@ void CLK::updateFrequencies()
       throw BlockError(*this, "unsupported SCLKSEL value");
   }
 
-  unsigned int prescalerA = 1 << psctrl_.psadiv;
-  unsigned int prescalerB = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
-  unsigned int prescalerC = (1 << (psctrl_.psbcdiv & 1));
-  f_per4_ = f_sys / prescalerA;
-  f_per2_ = f_per4_ / prescalerB;
-  f_cpu_ = f_per_ = f_per2_ / prescalerC;
+  prescaler_a_ = 1 << psctrl_.psadiv;
+  prescaler_b_ = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
+  prescaler_c_ = (1 << (psctrl_.psbcdiv & 1));
+  f_per4_ = f_sys / prescaler_a_;
+  f_per2_ = f_per4_ / prescaler_b_;
+  f_cpu_ = f_per_ = f_per2_ / prescaler_c_;
+
+  device_->onClockConfigChange();
 }
 
 

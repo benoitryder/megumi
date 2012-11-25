@@ -94,10 +94,6 @@ void OSC::reset()
   rc32kcal_ = 0x55; // random initial value
 }
 
-void OSC::step()
-{
-}
-
 
 }
 

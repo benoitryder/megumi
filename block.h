@@ -36,9 +36,6 @@ class Block
   virtual void executeIv(ivnum_t) {};
   /// Reset the block
   virtual void reset() = 0;
-  /// Step one cycle
-  virtual void step() {};
-  //TODO handle different clocks
 
  protected:
   /// Device the block is connected to

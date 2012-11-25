@@ -25,7 +25,6 @@ class OSC: public Block
   virtual uint8_t getIo(ioptr_t addr);
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void reset();
-  virtual void step();
 
   enum PLLSRC {
     PLLSRC_RC2M = 0,

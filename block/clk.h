@@ -9,6 +9,7 @@ namespace block {
 /// CLK peripheral
 class CLK: public Block
 {
+  friend class ::Device;
   static const ioptr_t IO_SIZE = 8;
 
  public:
@@ -20,7 +21,6 @@ class CLK: public Block
   virtual uint8_t getIo(ioptr_t addr);
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void reset();
-  virtual void step();
 
   enum SCLKSEL {
     SCLKSEL_RC2M = 0,
@@ -53,9 +53,12 @@ class CLK: public Block
   RTCSRC rtcsrc_;
   bool rtcen_;
 
-  // computed clock frequencies
+  // computed prescaler values and clock frequencies
   // these values must be kept in sync with register values
 
+  unsigned int prescaler_a_;
+  unsigned int prescaler_b_;
+  unsigned int prescaler_c_;
   unsigned int f_cpu_;
   unsigned int f_per_; // equal to f_cpu_
   unsigned int f_per2_;

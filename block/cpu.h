@@ -24,7 +24,7 @@ class CPU: public Block
   virtual uint8_t getIo(ioptr_t addr);
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void reset();
-  virtual void step();
+  void step();
 
   /// Return CCP state as read in the I/O register
   uint8_t ccpState() const {

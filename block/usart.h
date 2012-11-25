@@ -28,7 +28,6 @@ class USART: public Block
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void executeIv(ivnum_t iv);
   virtual void reset();
-  virtual void step();
 
  private:
   union STATUS {

@@ -119,10 +119,6 @@ void USART::reset()
   txb_ = 0;
 }
 
-void USART::step()
-{
-}
-
 
 }
 
