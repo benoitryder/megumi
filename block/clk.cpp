@@ -123,9 +123,9 @@ void CLK::updateFrequencies()
   unsigned int prescalerA = 1 << psctrl_.psadiv;
   unsigned int prescalerB = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
   unsigned int prescalerC = (1 << (psctrl_.psbcdiv & 1));
-  f_per4_ = f_sys * prescalerA;
-  f_per2_ = f_per4_ * prescalerB;
-  f_cpu_ = f_per_ = f_per2_ * prescalerC;
+  f_per4_ = f_sys / prescalerA;
+  f_per2_ = f_per4_ / prescalerB;
+  f_cpu_ = f_per_ = f_per2_ / prescalerC;
 }
 
 
