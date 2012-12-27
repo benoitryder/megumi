@@ -188,6 +188,8 @@ void GdbServer::run(int port)
 
 void GdbServer::execContinue()
 {
+  // always step once
+  execStep();
   for(;;) {
     // handle BREAK and breakpoints
     device_->step();
