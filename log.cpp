@@ -5,16 +5,18 @@
 #include <string.h>
 #include "log.h"
 
-#ifdef __WIN32
+#if defined __WIN32
+#ifndef localtime_r
 static struct ::tm* localtime_r(const time_t* timep, struct ::tm* tm)
 {
   struct ::tm* tmp = ::localtime(timep);
   memset(tm, 0, sizeof(*tm));
   if(tmp) {
-    tmp = tm;
+    *tm = *tmp;
   }
   return tmp;
 }
+#endif
 #endif
 
 
@@ -42,9 +44,8 @@ Message::Message(Severity severity):
   struct ::timeval tnow;
   ::gettimeofday(&tnow, NULL);
   struct ::tm tloc;
-  time_t timep;
+  time_t timep = tnow.tv_sec;
   localtime_r(&timep, &tloc);
-  tnow.tv_sec = timep;
 
   stream_
       << std::setfill('0')
