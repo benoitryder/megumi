@@ -98,10 +98,10 @@ void CPU::step()
     ccp_spm_cycles_--;
   }
 
-  if(ccp_buffer_ == 0x9D) {
+  if(ccp_buffer_ == 0xD8) {
     ccp_ioreg_cycles_ = 4;
     ccp_buffer_ = 0;
-  } else if(ccp_buffer_ == 0xD8) {
+  } else if(ccp_buffer_ == 0x9D) {
     ccp_spm_cycles_ = 4;
     ccp_buffer_ = 0;
   }
