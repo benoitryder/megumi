@@ -99,16 +99,15 @@ void CLK::reset()
 
 void CLK::updateFrequencies()
 {
-  unsigned int f_sys;
   switch(sclk_) {
     case SCLKSEL_RC2M:
-      f_sys = 2000000;
+      f_sys_ = 2000000;
       break;
     case SCLKSEL_RC32M:
-      f_sys = 32000000;
+      f_sys_ = 32000000;
       break;
     case SCLKSEL_RC32K:
-      f_sys = 32768;
+      f_sys_ = 32768;
       break;
     case SCLKSEL_XOSC:
     case SCLKSEL_PLL:
@@ -119,9 +118,6 @@ void CLK::updateFrequencies()
   prescaler_a_ = 1 << psctrl_.psadiv;
   prescaler_b_ = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
   prescaler_c_ = (1 << (psctrl_.psbcdiv & 1));
-  f_per4_ = f_sys / prescaler_a_;
-  f_per2_ = f_per4_ / prescaler_b_;
-  f_cpu_ = f_per_ = f_per2_ / prescaler_c_;
 
   device_->onClockConfigChange();
 }

@@ -59,10 +59,7 @@ class CLK: public Block
   unsigned int prescaler_a_;
   unsigned int prescaler_b_;
   unsigned int prescaler_c_;
-  unsigned int f_cpu_;
-  unsigned int f_per_; // equal to f_cpu_
-  unsigned int f_per2_;
-  unsigned int f_per4_;
+  unsigned int f_sys_;
 };
 
 
