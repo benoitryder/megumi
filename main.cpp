@@ -2,6 +2,7 @@
 #include <boost/program_options.hpp>
 #include "log.h"
 #include "input_hex.h"
+#include "gdbserver.h"
 #include "model/x128a1.h"
 
 
@@ -25,6 +26,8 @@ int main(int argc, char* argv[])
     po::options_description opts("Options");
     opts.add_options()
         ("help,h", "this help")
+        ("gdb-server,g", po::value<int>()->value_name("port")->implicit_value(2345), "run a gdbserver on given port")
+        ("sys-ticks", po::value<unsigned int>()->value_name("n"), "stop after given number of ticks")
         ;
 
     po::options_description opts_hidden; // hidden
@@ -60,8 +63,23 @@ int main(int argc, char* argv[])
     device.loadFlash(progdata);
     DLOG(NOTICE) << "flash data loaded";
     device.reset();
-    for(int i=0; i<1000; i++) {
-      device.step();
+
+    if(vm.count("gdb-server")) {
+      if(vm.count("sys-ticks")) {
+        std::cerr << "--gdb-server and --sys-ticks are incompatible" << std::endl;
+        return 1;
+      }
+      GdbServer gdbserver(&device);
+      gdbserver.run(vm["gdb-server"].as<int>());
+    } else if(vm.count("sys-ticks")) {
+      unsigned int ticks = vm["sys-ticks"].as<unsigned int>();
+      while(device.clk_sys_tick() < ticks) {
+        device.step();
+      }
+    } else {
+      for(;;) {
+        device.step();
+      }
     }
 
   } catch(const std::exception& e) {
