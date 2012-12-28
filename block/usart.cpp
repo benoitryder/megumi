@@ -14,6 +14,9 @@ namespace block {
 
 // USART links
 
+USARTLink::USARTLink(const USART& usart):
+    usart_(usart)
+{}
 USARTLink::~USARTLink() {}
 
 
@@ -21,10 +24,9 @@ USARTLink::~USARTLink() {}
 class USARTLinkDummy: public USARTLink
 {
  public:
-  //TODO use baudrate to limit send() speed
-  USARTLinkDummy() {}
+  USARTLinkDummy(const USART& usart): USARTLink(usart) {}
   virtual ~USARTLinkDummy() {}
-  virtual void configure(const USART*) {}
+  virtual void configure() {}
   virtual int recv() { return -1; }
   virtual bool send(uint8_t) { return true; }
 };
@@ -34,9 +36,9 @@ class USARTLinkDummy: public USARTLink
 class USARTLinkFile: public USARTLink
 {
  public:
-  USARTLinkFile(const std::string& path);
+  USARTLinkFile(const USART& usart, const std::string& path);
   virtual ~USARTLinkFile();
-  virtual void configure(const USART* usart);
+  virtual void configure() {}
   virtual int recv();
   virtual bool send(uint8_t v);
  private:
@@ -52,14 +54,10 @@ class USARTLinkFile: public USARTLink
 #endif
 };
 
-void USARTLinkFile::configure(const USART*)
-{
-  //TODO use baudrate to limit transfer speed
-}
-
 #ifdef __WIN32
 
-USARTLinkFile::USARTLinkFile(const std::string& path)
+USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
+    USARTLink(usart)
 {
   h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
   if(h_ == INVALID_HANDLE_VALUE) {
@@ -146,7 +144,8 @@ bool USARTLinkFile::send(uint8_t v)
 
 #else
 
-USARTLinkFile::USARTLinkFile(const std::string& path)
+USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
+    USARTLink(usart)
 {
   fd_ = ::open(path.c_str(), O_RDWR|O_NOCTTY|O_NONBLOCK);
   if(fd_ < 0) {
@@ -214,12 +213,12 @@ USART::USART(Device* dev, const Instance<USART>& instance):
     if(link_type == "serial") {
       throw std::runtime_error(name() + ": 'link_type = serial' not supported yet");
     } else if(link_type == "file") {
-      link_ = std::unique_ptr<USARTLink>(new USARTLinkFile(link_path));
+      link_ = std::unique_ptr<USARTLink>(new USARTLinkFile(*this, link_path));
     } else {
       throw std::runtime_error(name() + ": invalid link_type value");
     }
   } else {
-    link_ = std::unique_ptr<USARTLink>(new USARTLinkDummy());
+    link_ = std::unique_ptr<USARTLink>(new USARTLinkDummy(*this));
   }
 }
 
@@ -295,14 +294,14 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       vreg.pmode = 0;
     }
     ctrlc_.data = vreg.data;
-    link_->configure(this);
+    configure();
   } else if(addr == 0x06) { // BAUDCTRLA
     baudrate_ = (baudrate_ & 0xF00) | v;
     if(baudrate_ == 0 && baudscale_ != 0) {
       LOGF(ERROR, "if BSEL is 0, BSCALE must be 0 too");
       baudscale_ = 0;
     }
-    link_->configure(this);
+    configure();
   } else if(addr == 0x07) { // BAUDCTRLB
     int8_t scale = u8_to_s8<4>(v & 0xF);
     if(scale == -8) {
@@ -315,7 +314,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       scale = 0;
     }
     baudscale_ = scale;
-    link_->configure(this);
+    configure();
   } else {
     LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
   }
@@ -342,15 +341,19 @@ void USART::reset()
   txb_ = 0;
   //TODO schedule only the USART is enable, unschedule when disabled
   device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this), 1);
+  configure();
+  next_recv_tick_ = 0;
+  next_send_tick_ = 0;
 }
 
 
 void USART::step()
 {
-  //TODO baudrate is completely ignored here
-  if(ctrlb_.rxen) {
+  unsigned int sys_tick = device_->clk_sys_tick();
+  if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
     int v = link_->recv();
     if(v >= 0) {
+      next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
@@ -362,8 +365,9 @@ void USART::step()
     }
   }
   if(ctrlb_.txen) {
-    if(!status_.dreif) {
+    if(!status_.dreif && sys_tick >= next_send_tick_) {
       if(link_->send(txb_)) {
+        next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
         DLOGF(NOTICE, "%s send %02X") % name() % (int)txb_;
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
@@ -376,7 +380,27 @@ void USART::step()
 }
 
 
+void USART::configure()
+{
+  //TODO only supports "ctrlc_.cmod == 0" (asynchronous mode)
+  // for SPI, computed values are different
+
+  // number of bits per frame
+  unsigned int frame_bits = 1
+      + (ctrlc_.chsize == 7 ? 9 : 5+ctrlc_.chsize)
+      + (ctrlc_.pmode >= 2 ? 1 : 0)
+      + (ctrlc_.sbmode + 1)
+      ;
+  // PER ticks per bit
+  unsigned int bit_ticks = (ctrlb_.clk2x ? 8 : 16) *
+      (baudscale_ >= 0 ? ((baudrate_ + 1) << baudscale_) : (baudrate_ >> -baudscale_) + 1);
+  frame_sys_ticks_ = frame_bits * bit_ticks;
+  link_->configure();
+
+  DLOGF(NOTICE, "%s reconfigured: %u bauds") % name() % (device_->getClockFrequency(Device::ClockType::PER) / bit_ticks);
 }
 
+
+}
 
 

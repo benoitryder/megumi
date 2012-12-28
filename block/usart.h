@@ -13,17 +13,24 @@ class USART;
 class USARTLink
 {
  public:
+  USARTLink(const USART& usart);
   virtual ~USARTLink();
   /// Reconfigure the link
-  virtual void configure(const USART* usart) = 0;
+  virtual void configure() = 0;
   /// Receive a single byte, return -1 if there is nothing to read
   virtual int recv() = 0;
   /// Send a single byte, return \e false if it would block
   virtual bool send(uint8_t v) = 0;
+ protected:
+  const USART& usart_;
 };
 
 
 /** @brief USART peripheral
+ *
+ * Baudrate is limited by the peripheral implementation to ensure data is not
+ * sent/received too fast wrt the device clock.
+ * It may be limited by the link too.
  *
  * The following configuration values are defined:
  *  - \c link_path: file or device the USART is linked to
@@ -64,6 +71,9 @@ class USART: public Block
   void step();
 
  private:
+  /// Update internals after configuration change
+  void configure();
+
   union STATUS {
     uint8_t data;
     BitField<0> rxb8;
@@ -106,6 +116,9 @@ class USART: public Block
   uint8_t txb_;
 
   std::unique_ptr<USARTLink> link_;
+  unsigned int frame_sys_ticks_; ///< SYS ticks per frame
+  unsigned int next_recv_tick_; ///< SYS tick before next received frame
+  unsigned int next_send_tick_; ///< SYS tick before next sent frame
 };
 
 
