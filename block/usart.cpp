@@ -287,7 +287,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       vreg.cmode = 0;
     }
     if(vreg.chsize > 3 && vreg.chsize != 7) {
-      LOGF(ERROR, "invalid CTRLC.CHSIZE value: 1");
+      LOGF(ERROR, "invalid CTRLC.CHSIZE value");
       vreg.chsize = 3; // 8-bit
     }
     if(vreg.pmode == 1) {
