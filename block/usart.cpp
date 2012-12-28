@@ -298,6 +298,10 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     link_->configure(this);
   } else if(addr == 0x06) { // BAUDCTRLA
     baudrate_ = (baudrate_ & 0xF00) | v;
+    if(baudrate_ == 0 && baudscale_ != 0) {
+      LOGF(ERROR, "if BSEL is 0, BSCALE must be 0 too");
+      baudscale_ = 0;
+    }
     link_->configure(this);
   } else if(addr == 0x07) { // BAUDCTRLB
     int8_t scale = u8_to_s8<4>(v & 0xF);
@@ -306,6 +310,10 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       scale = 0;
     }
     baudrate_ = (baudrate_ & 0x0FF) | ((v & 0xF0) << 4);
+    if(baudrate_ == 0 && scale != 0) {
+      LOGF(ERROR, "if BSEL is 0, BSCALE must be 0 too");
+      scale = 0;
+    }
     baudscale_ = scale;
     link_->configure(this);
   } else {
