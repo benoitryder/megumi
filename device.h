@@ -139,6 +139,9 @@ class Device
    */
   void schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
 
+  /// Get clock scale from given clock type to SYS clock
+  unsigned int getClockScale(ClockType clock) const;
+
   /** @brief Reschedule tasks after a clock configuration update
    * @note Clock changes must be aligned on clock ticks.
    */
@@ -274,8 +277,6 @@ class Device
       return tick > o.tick || (tick == o.tick && priority < o.priority);
     }
   };
-  /// Get clock event scale for a given clock type
-  unsigned int getClockScale(ClockType clock) const;
   /** @brief Clock event queue
    *
    * The vector behave as a priority queue with the help of \c std::*_heap
