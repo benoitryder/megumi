@@ -55,7 +55,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x01 && !locked_) { // PSCTRL
     PSCTRL vreg;
     vreg.data = v & 0x7F;
-    if(vreg.psadiv > 9) {
+    if(vreg.psadiv > 9 || (vreg.psadiv != 0 && !(vreg.psadiv&1))) {
       LOGF(ERROR, "invalid PSADIV value");
     } else {
       psctrl_.data = vreg.data;
@@ -115,7 +115,7 @@ void CLK::updateFrequencies()
       throw BlockError(*this, "unsupported SCLKSEL value");
   }
 
-  prescaler_a_ = 1 << psctrl_.psadiv;
+  prescaler_a_ = psctrl_.psadiv == 0 ? 1 : 1 << ((psctrl_.psadiv>>1)+1);
   prescaler_b_ = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
   prescaler_c_ = (1 << (psctrl_.psbcdiv & 1));
 
