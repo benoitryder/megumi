@@ -121,12 +121,13 @@ class Device
   void setIoMem(ioptr_t addr, uint8_t v);
 
 
-  /// Clock types for scheduling
+  /// Clock types
   enum class ClockType {
-    CPU,
+    SYS, CPU,
     PER, PER2, PER4,
     ASY,
   };
+
   /// Callback for clock events
   typedef std::function<void()> ClockCallback;
   /** @brief Schedule a clock event
@@ -139,6 +140,8 @@ class Device
    */
   void schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
 
+  /// Return frequency of a given clock in Hz
+  unsigned int getClockFrequency(ClockType clock) const { return clk_.f_sys_ / getClockScale(clock); }
   /// Get clock scale from given clock type to SYS clock
   unsigned int getClockScale(ClockType clock) const;
 

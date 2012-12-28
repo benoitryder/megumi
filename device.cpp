@@ -1664,21 +1664,20 @@ void Device::onClockConfigChange()
 unsigned int Device::getClockScale(ClockType clock) const
 {
   switch(clock) {
+    case ClockType::SYS:
+      return 1;
     case ClockType::CPU:
     case ClockType::PER:
       return clk_.prescaler_a_ * clk_.prescaler_b_ * clk_.prescaler_c_;
-      break;
     case ClockType::PER2:
       return clk_.prescaler_a_ * clk_.prescaler_b_;
-      break;
     case ClockType::PER4:
       return clk_.prescaler_a_;
-      break;
     case ClockType::ASY:
       LOG(WARNING) << "ASY clock not supported";
       return 1;
     default:
-      throw std::runtime_error("invalid scheduled clock type");
+      throw std::runtime_error("invalid clock type");
   }
 }
 
