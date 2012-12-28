@@ -1,22 +1,26 @@
 #include <cassert>
 #include <algorithm>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/exceptions.hpp>
 #include "device.h"
 #include "log.h"
 
 
-Device::Device(const ModelConf& conf):
+Device::Device(const ModelConf& model, ConfTree& conf):
     // memory map
-    flash_size_(conf.flash_size),
-    flash_page_size_(conf.flash_page_size),
-    flash_app_size_(flash_size_ - conf.flash_boot_size),
-    flash_app_table_start_(flash_app_size_ - conf.flash_boot_size),
-    flash_app_table_size_(conf.flash_boot_size),
-    flash_boot_start_(flash_size_ - conf.flash_boot_size),
-    flash_boot_size_(conf.flash_boot_size),
-    mem_eeprom_size_(conf.mem_eeprom_size),
-    mem_sram_size_(conf.mem_sram_size),
+    flash_size_(model.flash_size),
+    flash_page_size_(model.flash_page_size),
+    flash_app_size_(flash_size_ - model.flash_boot_size),
+    flash_app_table_start_(flash_app_size_ - model.flash_boot_size),
+    flash_app_table_size_(model.flash_boot_size),
+    flash_boot_start_(flash_size_ - model.flash_boot_size),
+    flash_boot_size_(model.flash_boot_size),
+    mem_eeprom_size_(model.mem_eeprom_size),
+    mem_sram_size_(model.mem_sram_size),
     mem_exsram_start_(mem_sram_start_ + mem_sram_size_),
-    mem_exsram_size_(conf.has_exsram ? MEM_MAX_SIZE - mem_exsram_start_ : 0),
+    mem_exsram_size_(model.has_exsram ? MEM_MAX_SIZE - mem_exsram_start_ : 0),
+    // conf
+    conf_(conf),
     // flash and memory data
     flash_data_(flash_size_/2, 0xFF),
     sram_data_(mem_sram_size_),
@@ -54,6 +58,15 @@ Device::Device(const ModelConf& conf):
 
 Device::~Device()
 {
+}
+
+const Device::ConfTree& Device::conf(const std::string& path)
+{
+  try {
+    return conf_.get_child(path);
+  } catch(const boost::property_tree::ptree_bad_path&) {
+    return conf_.put_child(path, ConfTree());
+  }
 }
 
 

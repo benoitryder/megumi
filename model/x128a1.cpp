@@ -13,8 +13,8 @@ const Device::ModelConf ATxmega128A1::MODEL_CONF = {
 };
 
 
-ATxmega128A1::ATxmega128A1():
-    Device(MODEL_CONF),
+ATxmega128A1::ATxmega128A1(ConfTree& conf):
+    Device(MODEL_CONF, conf),
     portA_(this, block::instances::PORTA),
     portB_(this, block::instances::PORTB),
     portC_(this, block::instances::PORTC),

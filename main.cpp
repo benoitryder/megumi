@@ -1,5 +1,7 @@
 #include <iostream>
 #include <boost/program_options.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
 #include "log.h"
 #include "input_hex.h"
 #include "gdbserver.h"
@@ -7,6 +9,7 @@
 
 
 namespace po = boost::program_options;
+namespace pt = boost::property_tree;
 
 
 static void usage(const char* progname, const po::options_description& opts)
@@ -28,6 +31,7 @@ int main(int argc, char* argv[])
         ("help,h", "this help")
         ("gdb-server,g", po::value<int>()->value_name("port")->implicit_value(2345), "run a gdbserver on given port")
         ("sys-ticks", po::value<unsigned int>()->value_name("n"), "stop after given number of ticks")
+        ("conf-file,f", po::value<std::string>(), "configuration file")
         ;
 
     po::options_description opts_hidden; // hidden
@@ -54,10 +58,16 @@ int main(int argc, char* argv[])
       return 1;
     }
 
+    pt::ptree ptconf;
+    if(vm.count("conf-file")) {
+      std::string fname = vm["conf-file"].as<std::string>();
+      pt::ini_parser::read_ini(fname, ptconf);
+    }
+
     Log::setMinimumSeverity(Log::INFO);
     LOG(NOTICE) << "logging start";
 
-    model::ATxmega128A1 device;
+    model::ATxmega128A1 device(ptconf);
     DLOG(NOTICE) << "device created";
     std::vector<uint8_t> progdata = parse_hex_file(vm["input-file"].as<std::string>());
     device.loadFlash(progdata);

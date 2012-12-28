@@ -1,3 +1,4 @@
+#include <boost/property_tree/ptree.hpp>
 #include "device.h"
 #include "block.h"
 
@@ -18,5 +19,11 @@ Block::~Block()
 void Block::setIvLvl(ivnum_t iv, IntLvl lvl) const
 {
   device_->setIvLvl(iv+iv_base(), lvl);
+}
+
+
+const Block::ConfTree& Block::conf() const
+{
+  return device_->conf(name_);
 }
 

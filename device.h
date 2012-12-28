@@ -11,6 +11,7 @@
 #include <memory>
 #include <functional>
 #include <stdexcept>
+#include <boost/property_tree/ptree_fwd.hpp>
 #include "common.h"
 #include "block.h"
 #include "block/cpu.h"
@@ -36,13 +37,18 @@ class Device
     memptr_t mem_sram_size;
     bool has_exsram;
   };
+  /// User configuration tree
+  typedef boost::property_tree::ptree ConfTree;
 
   typedef std::array<uint8_t, 32> RegFile;
   typedef block::CPU::SREG SREG;
 
   /// Initialize constant members, connect blocks
-  Device(const ModelConf& conf);
+  Device(const ModelConf& model, ConfTree& conf);
   virtual ~Device();
+
+  const ConfTree& conf() const { return conf_; }
+  const ConfTree& conf(const std::string& path);
 
   /** @brief Reset the device
    *
@@ -175,6 +181,7 @@ class Device
   const memptr_t mem_exsram_start_;
   const memptr_t mem_exsram_size_; // 0 if no external SRAM
 
+  ConfTree& conf_;
 
   typedef std::map<ioptr_t, Block*> BlockContainer;
   /// Map of blocks indexed by I/O memory address

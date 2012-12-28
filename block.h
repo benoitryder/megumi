@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <boost/property_tree/ptree_fwd.hpp>
 #include "common.h"
 
 class Device;
@@ -16,6 +17,8 @@ class Device;
 class Block
 {
  public:
+  typedef boost::property_tree::ptree ConfTree;
+
   Block(Device* device_, const std::string& name, ioptr_t io_addr, ivnum_t iv_base=0);
   virtual ~Block();
 
@@ -36,6 +39,9 @@ class Block
   virtual void executeIv(ivnum_t) {};
   /// Reset the block
   virtual void reset() = 0;
+
+  /// Return the block configuration subtree
+  const ConfTree& conf() const;
 
  protected:
   /// Device the block is connected to
