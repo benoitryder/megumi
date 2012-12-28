@@ -1,12 +1,45 @@
 #ifndef BLOCK_USART_H__
 #define BLOCK_USART_H__
 
+#include <memory>
 #include "../block.h"
 
 namespace block {
 
+class USART;
 
-/// USART peripheral
+
+/// USART link
+class USARTLink
+{
+ public:
+  virtual ~USARTLink();
+  /// Reconfigure the link
+  virtual void configure(const USART* usart) = 0;
+  /// Receive a single byte, return -1 if there is nothing to read
+  virtual int recv() = 0;
+  /// Send a single byte, return \e false if it would block
+  virtual bool send(uint8_t v) = 0;
+};
+
+
+/** @brief USART peripheral
+ *
+ * The following configuration values are defined:
+ *  - \c link_path: file or device the USART is linked to
+ *  - \c link_type: address type
+ *
+ * \e link_path is a path to a plain or special file which will be handled
+ * depending on \e link_type
+ *  - \c file: normal file access using usual open/read/write
+ *  - \c serial: serial port, the port is configured to reflect block state
+ *
+ * Default type depends on the provided path:
+ *  - \c /dev/tty*: \c serial (Linux)
+ *  - \c COM* or \c \\.\COM*: \c serial (Windows)
+ *  - \c /dev/ptmx: \c serial, create a pseudoterminal master
+ *  - other: \c file
+ */
 class USART: public Block
 {
   static const ioptr_t IO_SIZE = 8;
@@ -28,6 +61,7 @@ class USART: public Block
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void executeIv(ivnum_t iv);
   virtual void reset();
+  void step();
 
  private:
   union STATUS {
@@ -70,6 +104,8 @@ class USART: public Block
 
   uint8_t rxb_;
   uint8_t txb_;
+
+  std::unique_ptr<USARTLink> link_;
 };
 
 
