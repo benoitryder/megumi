@@ -55,7 +55,7 @@ class USARTLinkFile: public USARTLink
 };
 
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
-    USARTLink(usart)
+    USARTLink(usart), state_read_{}, state_write_{}
 {
   h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
   if(h_ == INVALID_HANDLE_VALUE) {
@@ -91,19 +91,16 @@ int USARTLinkFile::recv()
       return state_read_.data;
     }
   } else {
-    switch(WaitForSingleObject(state_read_.o.hEvent, 0)) {
-      case WAIT_OBJECT_0: {
-        DWORD dummy;
-        if(!GetOverlappedResult(h_, &state_read_.o, &dummy, false)) {
-          throw std::runtime_error("read error on USART link file");
-        }
-        state_read_.waiting = false;
-        return state_read_.data;
-      }
-      case WAIT_TIMEOUT:
-        return -1;
-      default:
+    DWORD dummy;
+    if(!GetOverlappedResult(h_, &state_read_.o, &dummy, false)) {
+      DWORD error = GetLastError();
+      if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw std::runtime_error("read error on USART link file");
+      }
+      return -1;
+    } else {
+      state_read_.waiting = false;
+      return state_read_.data;
     }
   }
 }
@@ -123,19 +120,16 @@ bool USARTLinkFile::send(uint16_t v)
       return true;
     }
   } else {
-    switch(WaitForSingleObject(state_write_.o.hEvent, 0)) {
-      case WAIT_OBJECT_0: {
-        DWORD dummy;
-        if(!GetOverlappedResult(h_, &state_write_.o, &dummy, FALSE)) {
-          throw std::runtime_error("write error on USART link file");
-        }
-        state_write_.waiting = false;
-        return true;
-      }
-      case WAIT_TIMEOUT:
-        return false;
-      default:
+    DWORD dummy;
+    if(!GetOverlappedResult(h_, &state_write_.o, &dummy, false)) {
+      DWORD error = GetLastError();
+      if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw std::runtime_error("write error on USART link file");
+      }
+      return false;
+    } else {
+      state_write_.waiting = false;
+      return true;
     }
   }
 }
@@ -544,7 +538,7 @@ void USART::step()
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
-        DLOGF(NOTICE, "%s received %02X") % name() % v;
+        DLOGF(INFO, "%s received %02X") % name() % v;
         rxb_ = v;
         status_.rxb8 = v & 0x100;
         status_.rxcif = 1;
@@ -557,7 +551,7 @@ void USART::step()
       uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
       if(link_->send(v)) {
         next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
-        DLOGF(NOTICE, "%s send %02X") % name() % v;
+        DLOGF(INFO, "%s send %02X") % name() % v;
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
         status_.txcif = 1;
