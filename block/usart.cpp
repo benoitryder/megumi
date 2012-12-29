@@ -28,7 +28,7 @@ class USARTLinkDummy: public USARTLink
   virtual ~USARTLinkDummy() {}
   virtual void configure() {}
   virtual int recv() { return -1; }
-  virtual bool send(uint8_t) { return true; }
+  virtual bool send(uint16_t) { return true; }
 };
 
 
@@ -42,7 +42,7 @@ class USARTLinkFile: public USARTLink
   virtual ~USARTLinkFile();
   virtual void configure() {}
   virtual int recv();
-  virtual bool send(uint8_t v);
+  virtual bool send(uint16_t v);
  protected:
   HANDLE h_;
   struct {
@@ -106,7 +106,7 @@ int USARTLinkFile::recv()
   }
 }
 
-bool USARTLinkFile::send(uint8_t v)
+bool USARTLinkFile::send(uint16_t v)
 {
   if(!state_write_.waiting) {
     ResetEvent(state_write_.o.hEvent);
@@ -148,7 +148,7 @@ class USARTLinkFile: public USARTLink
   virtual ~USARTLinkFile();
   virtual void configure() {}
   virtual int recv();
-  virtual bool send(uint8_t v);
+  virtual bool send(uint16_t v);
  protected:
   int fd_;
 };
@@ -180,9 +180,10 @@ int USARTLinkFile::recv()
   }
 }
 
-bool USARTLinkFile::send(uint8_t v)
+bool USARTLinkFile::send(uint16_t v)
 {
-  ssize_t n = ::write(fd_, &v, 1);
+  uint8_t v8 = v; // keep only 8 bits
+  ssize_t n = ::write(fd_, &v8, 1);
   if(n == 1) {
     return true;
   } else if(n == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -362,12 +363,14 @@ void USART::step()
   if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
     int v = link_->recv();
     if(v >= 0) {
+      v &= (1 << databits())-1;
       next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
         DLOGF(NOTICE, "%s received %02X") % name() % v;
         rxb_ = v;
+        status_.rxb8 = v & 0x100;
         status_.rxcif = 1;
         setIvLvl(IV_RXC, rxc_intlvl_);
       }
@@ -375,9 +378,10 @@ void USART::step()
   }
   if(ctrlb_.txen) {
     if(!status_.dreif && sys_tick >= next_send_tick_) {
-      if(link_->send(txb_)) {
+      uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
+      if(link_->send(v)) {
         next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
-        DLOGF(NOTICE, "%s send %02X") % name() % (int)txb_;
+        DLOGF(NOTICE, "%s send %02X") % name() % v;
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
         status_.txcif = 1;
@@ -402,6 +406,9 @@ void USART::configure()
 {
   //TODO only supports "ctrlc_.cmod == 0" (asynchronous mode)
   // for SPI, computed values are different
+  if(databits() > 8) {
+    LOGF(WARNING, "%s: 9-bit character mode is not fully supported") % name();
+  }
 
   // number of bits per frame
   unsigned int frame_bits = 1 + databits() + (parity() != Parity::NO) + stopbits();

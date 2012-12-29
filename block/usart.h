@@ -20,7 +20,7 @@ class USARTLink
   /// Receive a single byte, return -1 if there is nothing to read
   virtual int recv() = 0;
   /// Send a single byte, return \e false if it would block
-  virtual bool send(uint8_t v) = 0;
+  virtual bool send(uint16_t v) = 0;
  protected:
   const USART& usart_;
 };
@@ -46,6 +46,8 @@ class USARTLink
  *  - \c COM* or \c \\.\COM*: \c serial (Windows)
  *  - \c /dev/ptmx: \c serial, create a pseudoterminal master
  *  - other: \c file
+ *
+ * @note 9-bit mode is not supported by links.
  */
 class USART: public Block
 {
