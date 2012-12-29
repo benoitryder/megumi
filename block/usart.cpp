@@ -1,6 +1,5 @@
 #ifdef __WIN32
-#include <windows.h>
-#undef ERROR
+#include "../win32.h"
 #else
 #include <termios.h>
 #endif
@@ -59,13 +58,19 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
 {
   h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
   if(h_ == INVALID_HANDLE_VALUE) {
-    throw std::runtime_error("failed to open USART link file: "+path);
+    DWORD error = GetLastError();
+    throw win32_error(error, usart_.name()+": failed to open link file "+path);
   }
 
   state_read_.o.hEvent = CreateEvent(NULL, true, false, NULL);
+  if(!state_read_.o.hEvent) {
+    DWORD error = GetLastError();
+    throw win32_error(error, usart_.name()+": CreateEvent() failed");
+  }
   state_write_.o.hEvent = CreateEvent(NULL, true, false, NULL);
-  if(!state_read_.o.hEvent || !state_write_.o.hEvent) {
-    throw std::runtime_error("failed to initialize USART link file");
+  if(!state_write_.o.hEvent) {
+    DWORD error = GetLastError();
+    throw win32_error(error, usart_.name()+": CreateEvent() failed");
   }
 }
 
@@ -82,8 +87,9 @@ int USARTLinkFile::recv()
   if(!state_read_.waiting) {
     ResetEvent(state_read_.o.hEvent);
     if(!ReadFile(h_, &state_read_.data, 1, NULL, &state_read_.o)) {
-      if(GetLastError() != ERROR_IO_PENDING) {
-        throw std::runtime_error("read error on USART link file");
+      DWORD error = GetLastError();
+      if(error != ERROR_IO_PENDING) {
+        throw win32_error(error, usart_.name()+": read error");
       }
       state_read_.waiting = true;
       return -1;
@@ -95,7 +101,7 @@ int USARTLinkFile::recv()
     if(!GetOverlappedResult(h_, &state_read_.o, &dummy, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
-        throw std::runtime_error("read error on USART link file");
+        throw win32_error(error, usart_.name()+": read error");
       }
       return -1;
     } else {
@@ -111,8 +117,9 @@ bool USARTLinkFile::send(uint16_t v)
     ResetEvent(state_write_.o.hEvent);
     state_write_.data = v;
     if(!WriteFile(h_, &state_write_.data, 1, NULL, &state_write_.o)) {
-      if(GetLastError() != ERROR_IO_PENDING) {
-        throw std::runtime_error("failed to write on USART link file");
+      DWORD error = GetLastError();
+      if(error != ERROR_IO_PENDING) {
+        throw win32_error(error, usart_.name()+": write error");
       }
       state_write_.waiting = true;
       return false;
@@ -124,7 +131,7 @@ bool USARTLinkFile::send(uint16_t v)
     if(!GetOverlappedResult(h_, &state_write_.o, &dummy, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
-        throw std::runtime_error("write error on USART link file");
+        throw win32_error(error, usart_.name()+": write error");
       }
       return false;
     } else {
@@ -148,7 +155,8 @@ void USARTLinkSerial::configure()
 {
   DCB dcb = {0};
   if(!GetCommState(h_, &dcb)) {
-    throw std::runtime_error("GetCommState() failed");
+    DWORD error = GetLastError();
+    throw win32_error(error, usart_.name()+": GetCommState() failed");
   }
 
   dcb.BaudRate = usart_.baudrate();
@@ -169,7 +177,8 @@ void USARTLinkSerial::configure()
   }
   dcb.StopBits = usart_.stopbits() == 1 ? ONESTOPBIT : TWOSTOPBITS;
   if(!SetCommState(h_, &dcb)) {
-    throw std::runtime_error("SetCommState() failed");
+    DWORD error = GetLastError();
+    throw win32_error(error, usart_.name()+": SetCommState() failed");
   }
 }
 
