@@ -32,6 +32,8 @@ class USARTLinkDummy: public USARTLink
 };
 
 
+#ifdef __WIN32
+
 /// USART link to plain file
 class USARTLinkFile: public USARTLink
 {
@@ -41,20 +43,14 @@ class USARTLinkFile: public USARTLink
   virtual void configure() {}
   virtual int recv();
   virtual bool send(uint8_t v);
- private:
-#ifdef __WIN32
+ protected:
   HANDLE h_;
   struct {
     OVERLAPPED o;
     uint8_t data;
     bool waiting;
   } state_read_, state_write_;
-#else
-  int fd_;
-#endif
 };
-
-#ifdef __WIN32
 
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
     USARTLink(usart)
@@ -143,6 +139,19 @@ bool USARTLinkFile::send(uint8_t v)
 }
 
 #else
+
+/// USART link to plain file
+class USARTLinkFile: public USARTLink
+{
+ public:
+  USARTLinkFile(const USART& usart, const std::string& path);
+  virtual ~USARTLinkFile();
+  virtual void configure() {}
+  virtual int recv();
+  virtual bool send(uint8_t v);
+ protected:
+  int fd_;
+};
 
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
     USARTLink(usart)
