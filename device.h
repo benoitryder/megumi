@@ -137,8 +137,11 @@ class Device
    * @param period  event period, 0 for non-repeated ones
    * @param ticks  ticks before the first execution
    * @param priority  event priority
+   * @return The ID of the created event (never 0).
    */
-  void schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
+  unsigned int schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
+  /// Unschedule an event
+  void unschedule(unsigned int id);
 
   /// Return frequency of a given clock in Hz
   unsigned int getClockFrequency(ClockType clock) const { return clk_.f_sys_ / getClockScale(clock); }
@@ -261,6 +264,7 @@ class Device
 
   /// Clock event object
   struct ClockEvent {
+    unsigned int id;  ///< Unique Event ID
     ClockType clock; ///< Clock the event is scheduled for
     ClockCallback callback;  ///< Event callback
     unsigned int period;  ///< Event period in clock ticks, 0 for non-repeated tasks
@@ -288,6 +292,8 @@ class Device
   typedef std::vector<ClockEvent> ClockQueue;
   /// Events scheduled on the SYS clock or derived clocks
   ClockQueue clk_sys_queue_;
+  /// Next clock event ID
+  unsigned int next_clock_event_id_;
 
 
   // blocks

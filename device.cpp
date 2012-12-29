@@ -1,5 +1,6 @@
 #include <cassert>
 #include <algorithm>
+#include <climits>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/exceptions.hpp>
 #include "device.h"
@@ -77,6 +78,7 @@ void Device::reset()
   interrupt_wait_instruction_ = true;
   clk_sys_tick_ = 0;
   clk_sys_queue_.clear();
+  next_clock_event_id_ = 1;
 
   // reset CLK first for schedule()
   clk_.reset();
@@ -1635,12 +1637,27 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
 }
 
 
-void Device::schedule(ClockType clock, ClockCallback cb, unsigned int period, unsigned int ticks, unsigned int priority)
+unsigned int Device::schedule(ClockType clock, ClockCallback cb, unsigned int period, unsigned int ticks, unsigned int priority)
 {
   assert(cb);
+  assert(next_clock_event_id_ != UINT_MAX);
+  unsigned int id = next_clock_event_id_++;
   unsigned int scale = getClockScale(clock);
-  clk_sys_queue_.push_back({ clock, cb, period, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
+  clk_sys_queue_.push_back({ id, clock, cb, period, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
   std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+  return id;
+}
+
+void Device::unschedule(unsigned int id)
+{
+  for(auto it=clk_sys_queue_.begin(); it!=clk_sys_queue_.end(); ++it) {
+    if(it->id == id) {
+      clk_sys_queue_.erase(it);
+      std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      return;
+    }
+  }
+  LOGF(ERROR, "cannot unschedule event: not found");
 }
 
 
