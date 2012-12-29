@@ -1,6 +1,8 @@
 #ifdef __WIN32
 #include <windows.h>
 #undef ERROR
+#else
+#include <termios.h>
 #endif
 #include <cassert>
 #include <fcntl.h>
@@ -138,6 +140,46 @@ bool USARTLinkFile::send(uint16_t v)
   }
 }
 
+
+/// USART link to serial port
+class USARTLinkSerial: public USARTLinkFile
+{
+ public:
+  USARTLinkSerial(const USART& usart, const std::string& path):
+      USARTLinkFile(usart, path) {}
+  virtual void configure();
+};
+
+void USARTLinkSerial::configure()
+{
+  DCB dcb = {0};
+  if(!GetCommState(h_, &dcb)) {
+    throw std::runtime_error("GetCommState() failed");
+  }
+
+  dcb.BaudRate = usart_.baudrate();
+  dcb.ByteSize = usart_.databits() ;
+  switch(usart_.parity()) {
+    case USART::Parity::NO:
+      dcb.fParity = false;
+      dcb.Parity = NOPARITY;
+      break;
+    case USART::Parity::ODD:
+      dcb.fParity = true;
+      dcb.Parity = ODDPARITY;
+      break;
+    case USART::Parity::EVEN:
+      dcb.fParity = true;
+      dcb.Parity = EVENPARITY;
+      break;
+  }
+  dcb.StopBits = usart_.stopbits() == 1 ? ONESTOPBIT : TWOSTOPBITS;
+  if(!SetCommState(h_, &dcb)) {
+    throw std::runtime_error("SetCommState() failed");
+  }
+}
+
+
 #else
 
 /// USART link to plain file
@@ -193,6 +235,127 @@ bool USARTLinkFile::send(uint16_t v)
   }
 }
 
+
+/// USART link to serial port
+class USARTLinkSerial: public USARTLinkFile
+{
+ public:
+  USARTLinkSerial(const USART& usart, const std::string& path);
+  virtual void configure();
+};
+
+USARTLinkSerial::USARTLinkSerial(const USART& usart, const std::string& path):
+  USARTLinkFile(usart, path)
+{
+  if(path == "/dev/ptmx") {
+    LOGF(INFO, "%s ptsname: %s") % usart_.name() % ::ptsname(fd_);
+    if(::grantpt(fd_)) {
+      throw std::runtime_error("granpt() failed");
+    }
+    if(::unlockpt(fd_)) {
+      throw std::runtime_error("unlockpt() failed");
+    }
+  }
+}
+
+void USARTLinkSerial::configure()
+{
+  struct termios tos;
+  if(::tcgetattr(fd_, &tos)) {
+    throw std::runtime_error("tcgetattr() failed");
+  }
+  tos.c_iflag &= ~(INPCK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
+  tos.c_oflag &= ~OPOST;
+  tos.c_cflag = CREAD|CLOCAL;
+  tos.c_lflag = 0;
+
+  // get closest known baudrate value
+  {
+    struct BaudrateConstant { ::speed_t c; unsigned int v; };
+    const BaudrateConstant baudrates[] = {
+      { B0, 0 },
+      { B50, 50 },
+      { B75, 75 },
+      { B110, 110 },
+      { B134, 134 },
+      { B150, 150 },
+      { B200, 200 },
+      { B300, 300 },
+      { B600, 600 },
+      { B1200, 1200 },
+      { B1800, 1800 },
+      { B2400, 2400 },
+      { B4800, 4800 },
+      { B9600, 9600 },
+      { B19200, 19200 },
+      { B38400, 38400 },
+      // non-POSIX baudrate values
+#ifdef B57600
+      { B57600, 57600 },
+#endif
+#ifdef B115200
+      { B115200, 115200 },
+#endif
+#ifdef B230400
+      { B230400, 230400 },
+#endif
+#ifdef B460800
+      { B460800, 460800 },
+#endif
+    };
+
+    unsigned int baudrate = usart_.baudrate();
+    const size_t baudrates_n = sizeof(baudrates)/sizeof(*baudrates);
+    size_t i;
+    for(i=0; i<baudrates_n && baudrates[i].v < baudrate; ++i) ;
+    if(i == baudrates_n || (i > 0 && baudrate-baudrates[i-1].v < baudrates[i].v-baudrate)) {
+      --i;
+    }
+    if(::cfsetspeed(&tos, baudrates[i].c)) {
+      throw std::runtime_error("cfsetspeed() failed");
+    }
+  }
+
+  switch(usart_.databits()) {
+    case 5: tos.c_cflag |= CS5; break;
+    case 6: tos.c_cflag |= CS6; break;
+    case 7: tos.c_cflag |= CS7; break;
+    case 8: tos.c_cflag |= CS8; break;
+    case 9: throw std::runtime_error("CTRLC.CHSIZE value not supported");
+  }
+
+  switch(usart_.parity()) {
+    case USART::Parity::ODD: tos.c_cflag |= PARENB|PARODD; break;
+    case USART::Parity::EVEN: tos.c_cflag |= PARENB; break;
+    default: break;
+  }
+  switch(usart_.parity()) {
+    case USART::Parity::NO:
+      tos.c_cflag &= ~(PARENB|PARODD);
+      break;
+    case USART::Parity::ODD:
+      tos.c_cflag |= PARENB|PARODD;
+      break;
+    case USART::Parity::EVEN:
+      tos.c_cflag |= PARENB;
+      tos.c_cflag &= ~PARODD;
+      break;
+  }
+  if(usart_.stopbits() == 1) {
+    tos.c_cflag &= ~CSTOPB;
+  } else {
+    tos.c_cflag |= CSTOPB;
+  }
+
+  tos.c_cc[VMIN] = 1;
+  tos.c_cc[VTIME] = 0;
+
+  if(::tcsetattr(fd_, TCSANOW, &tos)) {
+    throw std::runtime_error("tcsetattr() failed");
+  }
+}
+
+
 #endif
 
 
@@ -221,7 +384,7 @@ USART::USART(Device* dev, const Instance<USART>& instance):
       }
     }
     if(link_type == "serial") {
-      throw std::runtime_error(name() + ": 'link_type = serial' not supported yet");
+      link_ = std::unique_ptr<USARTLink>(new USARTLinkSerial(*this, link_path));
     } else if(link_type == "file") {
       link_ = std::unique_ptr<USARTLink>(new USARTLinkFile(*this, link_path));
     } else {
