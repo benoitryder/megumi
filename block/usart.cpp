@@ -384,6 +384,11 @@ USART::USART(Device* dev, const Instance<USART>& instance):
       }
     }
     if(link_type == "serial") {
+#ifdef __WIN32
+      if(link_path.find_first_of("\\/") == std::string::npos) {
+        link_path = "\\\\.\\" + link_path;
+      }
+#endif
       link_ = std::unique_ptr<USARTLink>(new USARTLinkSerial(*this, link_path));
     } else if(link_type == "file") {
       link_ = std::unique_ptr<USARTLink>(new USARTLinkFile(*this, link_path));

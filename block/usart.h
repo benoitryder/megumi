@@ -47,6 +47,9 @@ class USARTLink
  *  - \c /dev/ptmx: \c serial, create a pseudoterminal master
  *  - other: \c file
  *
+ * On Windows, if type is \c serial, the path is prefixed by \c \\.\ if does
+ * not contain a path separator.
+ *
  * @note 9-bit mode is not supported by links.
  */
 class USART: public Block
