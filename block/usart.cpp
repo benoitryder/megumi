@@ -452,6 +452,15 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     if(status_.dreif) setIvLvl(IV_DRE, dre_intlvl_);
   } else if(addr == 0x04) { // CTRLB
     ctrlb_.data = v & 0x1F;
+    if(step_event_id_) {
+      if(!ctrlb_.txen && !ctrlb_.rxen) {
+        device_->unschedule(step_event_id_);
+      }
+    } else {
+      if(ctrlb_.txen || ctrlb_.rxen) {
+        step_event_id_ = device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this), 1);
+      }
+    }
   } else if(addr == 0x05) { // CTRLC
     CTRLC vreg = { .data=v };
     if(vreg.cmode != 0) {
@@ -512,8 +521,7 @@ void USART::reset()
   baudscale_ = 0;
   rxb_ = 0;
   txb_ = 0;
-  //TODO schedule only the USART is enable, unschedule when disabled
-  device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this), 1);
+  step_event_id_ = 0;
   configure();
   next_recv_tick_ = 0;
   next_send_tick_ = 0;

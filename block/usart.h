@@ -133,6 +133,9 @@ class USART: public Block
   uint8_t rxb_;
   uint8_t txb_;
 
+  // ID of the scheduled step() event
+  unsigned int step_event_id_;
+
   std::unique_ptr<USARTLink> link_;
   unsigned int frame_sys_ticks_; ///< SYS ticks per frame
   unsigned int next_recv_tick_; ///< SYS tick before next received frame
