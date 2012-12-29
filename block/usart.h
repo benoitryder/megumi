@@ -70,6 +70,22 @@ class USART: public Block
   virtual void reset();
   void step();
 
+  /// Parity values
+  enum class Parity { NO, EVEN, ODD };
+
+  /** @brief Return baudrate
+   *
+   * The actual baudrate is aligned to the ATmega clock and thus is not a round
+   * value such as 9600 or 38400.
+   */
+  unsigned int baudrate() const;
+  /// Return data bit count (5 to 9)
+  unsigned int databits() const { return ctrlc_.chsize == 7 ? 9 : 5+ctrlc_.chsize; }
+  /// Return parity
+  Parity parity() const { return ctrlc_.pmode == 2 ? Parity::EVEN : ctrlc_.pmode == 3 ? Parity::ODD : Parity::NO; }
+  /// Return number of stop bits (1 or 2)
+  unsigned int stopbits() const { return ctrlc_.sbmode + 1; }
+
  private:
   /// Update internals after configuration change
   void configure();

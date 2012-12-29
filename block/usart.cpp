@@ -389,24 +389,30 @@ void USART::step()
 }
 
 
+unsigned int USART::baudrate() const
+{
+  // note: same formula in configure()
+  unsigned int bit_ticks = (ctrlb_.clk2x ? 8 : 16) *
+      (baudscale_ >= 0 ? ((baudrate_ + 1) << baudscale_) : (baudrate_ >> -baudscale_) + 1);
+  return device_->getClockFrequency(Device::ClockType::PER) / bit_ticks;
+}
+
+
 void USART::configure()
 {
   //TODO only supports "ctrlc_.cmod == 0" (asynchronous mode)
   // for SPI, computed values are different
 
   // number of bits per frame
-  unsigned int frame_bits = 1
-      + (ctrlc_.chsize == 7 ? 9 : 5+ctrlc_.chsize)
-      + (ctrlc_.pmode >= 2 ? 1 : 0)
-      + (ctrlc_.sbmode + 1)
-      ;
+  unsigned int frame_bits = 1 + databits() + (parity() != Parity::NO) + stopbits();
   // PER ticks per bit
+  // note: same formula in baudrate()
   unsigned int bit_ticks = (ctrlb_.clk2x ? 8 : 16) *
       (baudscale_ >= 0 ? ((baudrate_ + 1) << baudscale_) : (baudrate_ >> -baudscale_) + 1);
   frame_sys_ticks_ = frame_bits * bit_ticks;
   link_->configure();
 
-  DLOGF(NOTICE, "%s reconfigured: %u bauds") % name() % (device_->getClockFrequency(Device::ClockType::PER) / bit_ticks);
+  DLOGF(NOTICE, "%s reconfigured: %u bauds") % name() % baudrate();
 }
 
 
