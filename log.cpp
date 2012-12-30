@@ -43,7 +43,7 @@ Message::Message(Severity severity):
 {
   struct ::timeval tnow;
   ::gettimeofday(&tnow, NULL);
-  struct ::tm tloc;
+  struct ::tm tloc = {};
   time_t timep = tnow.tv_sec;
   localtime_r(&timep, &tloc);
 
