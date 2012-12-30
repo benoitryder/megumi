@@ -371,7 +371,7 @@ unsigned int Device::executeNextInstruction()
   // INC
   else if((opcode & 0xFE0F) == 0x9403) {
     uint8_t d = (opcode >> 4) & 0x1F;
-    uint8_t R = regfile_[d]++;
+    uint8_t R = ++regfile_[d];
     DLOGF_OPCODE("INC r%d") % (int)d;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -421,7 +421,7 @@ unsigned int Device::executeNextInstruction()
   // DEC
   else if((opcode & 0xFE0F) == 0x940A) {
     uint8_t d = (opcode >> 4) & 0x1F;
-    uint8_t R = regfile_[d]--;
+    uint8_t R = --regfile_[d];
     DLOGF_OPCODE("DEC r%d") % (int)d;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
