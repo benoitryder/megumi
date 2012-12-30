@@ -23,7 +23,7 @@ Device::Device(const ModelConf& model, ConfTree& conf):
     // conf
     conf_(conf),
     // flash and memory data
-    flash_data_(flash_size_/2, 0xFF),
+    flash_data_(flash_size_/2, 0xFFFF),
     sram_data_(mem_sram_size_),
     // blocks
     cpu_(this),
