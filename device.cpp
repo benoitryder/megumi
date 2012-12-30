@@ -802,15 +802,6 @@ unsigned int Device::executeNextInstruction()
     cpu_.pc_++;
   }
   // LDS (16-bit)
-  else if((opcode & 0xF800) == 0xA000) {
-    uint8_t d = ((opcode >> 4) & 0xF) | 0x10; // 16 <= d <= 31
-    uint8_t k = (opcode & 0xF) | ((opcode >> 5) & 0x30) |
-        ((opcode >> 2) & 0x40) | (~(opcode >> 1) & 0x80);
-    DLOGF_OPCODE("LDS r%d,0x%02X") % (int)d % (int)k;
-    regfile_[d] = getIoMem(k); // k < 128, always in I/O mem
-    cpu_.pc_++;
-  }
-  // LDS
   else if((opcode & 0xFE0F) == 0x9000) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t k = flash_data_[cpu_.pc_+1];
@@ -983,15 +974,6 @@ unsigned int Device::executeNextInstruction()
   }
 
   // STS (16-bit)
-  else if((opcode & 0xF800) == 0xA800) {
-    uint8_t d = ((opcode >> 4) & 0xF) | 0x10; // 16 <= d <= 31
-    uint8_t k = (opcode & 0xF) | ((opcode >> 5) & 0x30) |
-        ((opcode >> 2) & 0x40) | (~(opcode >> 1) & 0x80);
-    DLOGF_OPCODE("STS 0x%02X,r%d") % (int)k % (int)d;
-    setIoMem(k, regfile_[d]); // k < 128, always in I/O mem
-    cpu_.pc_++;
-  }
-  // STS
   else if((opcode & 0xFE0F) == 0x9200) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t k = flash_data_[cpu_.pc_+1];
