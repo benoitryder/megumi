@@ -137,6 +137,8 @@ class Device
    * @param ticks  ticks before the first execution
    * @param priority  event priority
    * @return The ID of the created event (never 0).
+   *
+   * @warning The callback must not schedule new events.
    */
   unsigned int schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1, unsigned int priority=10);
   /// Unschedule an event
@@ -287,11 +289,15 @@ class Device
    * The vector behave as a priority queue with the help of \c std::*_heap
    * functions.
    */
-  typedef std::vector<ClockEvent> ClockQueue;
+  typedef std::vector<std::unique_ptr<ClockEvent>> ClockQueue;
   /// Events scheduled on the SYS clock or derived clocks
   ClockQueue clk_sys_queue_;
   /// Next clock event ID
   unsigned int next_clock_event_id_;
+  /// Compare function for ClockQueue (pointer) elements
+  static bool clock_queue_cmp(const ClockQueue::value_type& a, const ClockQueue::value_type& b) {
+    return *a < *b;
+  }
 
 
   // blocks

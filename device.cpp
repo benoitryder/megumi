@@ -98,21 +98,20 @@ void Device::reset()
 void Device::step()
 {
   assert(!clk_sys_queue_.empty());
-  clk_sys_tick_ = clk_sys_queue_.front().tick;
+  clk_sys_tick_ = clk_sys_queue_.front()->tick;
 
   for(;;) {
-    ClockEvent& ev = clk_sys_queue_.front();
-    if(ev.tick > clk_sys_tick_) {
+    ClockEvent* ev = clk_sys_queue_.front().get();
+    if(ev->tick > clk_sys_tick_) {
       break;
     }
-    unsigned int next = ev.callback();
-    // ev becomes invalid after updating the vector
+    unsigned int next = ev->callback();
     if(next) {
-      ev.tick += next * ev.scale;
-      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
-      std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      ev->tick += next * ev->scale;
+      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
+      std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
     } else {
-      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
       clk_sys_queue_.pop_back();
     }
   }
@@ -1626,17 +1625,17 @@ unsigned int Device::schedule(ClockType clock, ClockCallback cb, unsigned int ti
   assert(next_clock_event_id_ != UINT_MAX);
   unsigned int id = next_clock_event_id_++;
   unsigned int scale = getClockScale(clock);
-  clk_sys_queue_.push_back({ id, clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
-  std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+  clk_sys_queue_.emplace_back(new ClockEvent{ id, clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
+  std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
   return id;
 }
 
 void Device::unschedule(unsigned int id)
 {
   for(auto it=clk_sys_queue_.begin(); it!=clk_sys_queue_.end(); ++it) {
-    if(it->id == id) {
+    if((*it)->id == id) {
       clk_sys_queue_.erase(it);
-      std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+      std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
       return;
     }
   }
@@ -1647,17 +1646,17 @@ void Device::unschedule(unsigned int id)
 void Device::onClockConfigChange()
 {
   for(auto& ev: clk_sys_queue_) {
-    unsigned int scale = getClockScale(ev.clock);
-    if(ev.scale == scale) {
+    unsigned int scale = getClockScale(ev->clock);
+    if(ev->scale == scale) {
       continue; // nothing to do
     }
     // this method should only be called on slowest clock tick
-    assert((ev.tick - clk_sys_tick_) % ev.scale == 0);
-    unsigned int dt = (ev.tick - clk_sys_tick_ + ev.scale-1) / ev.scale;
-    ev.tick = clk_sys_tick_ + dt * scale;
-    ev.scale = scale;
+    assert((ev->tick - clk_sys_tick_) % ev->scale == 0);
+    unsigned int dt = (ev->tick - clk_sys_tick_ + ev->scale-1) / ev->scale;
+    ev->tick = clk_sys_tick_ + dt * scale;
+    ev->scale = scale;
   }
-  std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
+  std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
 }
 
 
