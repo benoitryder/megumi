@@ -150,7 +150,7 @@ void GdbServer::run(int port)
 
   struct ::sockaddr_in addr = {
     .sin_family = AF_INET,
-    .sin_port = ::htons(port),
+    .sin_port = htons(port),
   };
 
   if(::bind(sock_server, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
