@@ -68,7 +68,7 @@ class Device
   void step();
 
   /// Execute a CPU clock cycle
-  void stepCPU();
+  unsigned int stepCPU();
 
   /// CCP state bitmask values
   static const uint8_t CCP_IOREG = 0x1;
@@ -129,17 +129,16 @@ class Device
   };
 
   /// Callback for clock events
-  typedef std::function<void()> ClockCallback;
+  typedef std::function<unsigned int()> ClockCallback;
   /** @brief Schedule a clock event
    *
    * @param clock  clock the event is scheduled for
    * @param cb  event callback
-   * @param period  event period, 0 for non-repeated ones
    * @param ticks  ticks before the first execution
    * @param priority  event priority
    * @return The ID of the created event (never 0).
    */
-  unsigned int schedule(ClockType clock, ClockCallback cb, unsigned int period=0, unsigned int ticks=1, unsigned int priority=10);
+  unsigned int schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1, unsigned int priority=10);
   /// Unschedule an event
   void unschedule(unsigned int id);
 
@@ -267,7 +266,6 @@ class Device
     unsigned int id;  ///< Unique Event ID
     ClockType clock; ///< Clock the event is scheduled for
     ClockCallback callback;  ///< Event callback
-    unsigned int period;  ///< Event period in clock ticks, 0 for non-repeated tasks
     /** @brief Execution priority
      *
      * Event with lowest priority is executed first.

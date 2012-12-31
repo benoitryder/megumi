@@ -82,7 +82,7 @@ void Device::reset()
 
   // reset CLK first for schedule()
   clk_.reset();
-  schedule(ClockType::CPU, std::bind(&Device::stepCPU, this), 1, 1, 100);
+  schedule(ClockType::CPU, std::bind(&Device::stepCPU, this), 1, 100);
 
   // reset blocks
   for(auto it: blocks_) {
@@ -105,10 +105,10 @@ void Device::step()
     if(ev.tick > clk_sys_tick_) {
       break;
     }
-    ev.callback();
+    unsigned int next = ev.callback();
     // ev becomes invalid after updating the vector
-    if(ev.period) {
-      ev.tick += ev.period * ev.scale;
+    if(next) {
+      ev.tick += next * ev.scale;
       std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
       std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
     } else {
@@ -119,7 +119,7 @@ void Device::step()
 }
 
 
-void Device::stepCPU()
+unsigned int Device::stepCPU()
 {
   //TODO handle halted CPU
 
@@ -143,6 +143,7 @@ void Device::stepCPU()
     interrupt_wait_instruction_ = false;
   }
   instruction_cycles_--;
+  return 1;
 }
 
 
@@ -1619,13 +1620,13 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
 }
 
 
-unsigned int Device::schedule(ClockType clock, ClockCallback cb, unsigned int period, unsigned int ticks, unsigned int priority)
+unsigned int Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks, unsigned int priority)
 {
   assert(cb);
   assert(next_clock_event_id_ != UINT_MAX);
   unsigned int id = next_clock_event_id_++;
   unsigned int scale = getClockScale(clock);
-  clk_sys_queue_.push_back({ id, clock, cb, period, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
+  clk_sys_queue_.push_back({ id, clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
   std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end());
   return id;
 }

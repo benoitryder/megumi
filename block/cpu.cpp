@@ -85,10 +85,10 @@ void CPU::reset()
   sp_ = device_->mem_exsram_start_-1;
   sreg_.data = 0;
   pc_ = 0; //TODO may start on bootloader
-  device_->schedule(Device::ClockType::PER, std::bind(&CPU::step, this), 1);
+  device_->schedule(Device::ClockType::PER, std::bind(&CPU::step, this));
 }
 
-void CPU::step()
+unsigned int CPU::step()
 {
   //TODO check execution order: decrement before/after instructions?
   if(ccp_ioreg_cycles_ > 0) {
@@ -105,6 +105,7 @@ void CPU::step()
     ccp_spm_cycles_ = 4;
     ccp_buffer_ = 0;
   }
+  return 1;
 }
 
 

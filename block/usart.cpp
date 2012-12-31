@@ -466,7 +466,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
-        step_event_id_ = device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this), 1);
+        step_event_id_ = device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this));
       }
     }
   } else if(addr == 0x05) { // CTRLC
@@ -536,7 +536,7 @@ void USART::reset()
 }
 
 
-void USART::step()
+unsigned int USART::step()
 {
   unsigned int sys_tick = device_->clk_sys_tick();
   if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
@@ -569,6 +569,7 @@ void USART::step()
       }
     }
   }
+  return 1;
 }
 
 

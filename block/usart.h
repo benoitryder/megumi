@@ -73,7 +73,7 @@ class USART: public Block
   virtual void setIo(ioptr_t addr, uint8_t v);
   virtual void executeIv(ivnum_t iv);
   virtual void reset();
-  void step();
+  unsigned int step();
 
   /// Parity values
   enum class Parity { NO, EVEN, ODD };

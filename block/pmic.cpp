@@ -52,12 +52,12 @@ void PMIC::reset()
 {
   status_.data = 0;
   ctrl_.data = 0;
-  //TODO device_->schedule(Device::ClockType::PER, std::bind(&PMIC::step, this), 1);
+  //TODO device_->schedule(Device::ClockType::PER, std::bind(&PMIC::step, this));
 }
 
-void PMIC::step()
+unsigned int PMIC::step()
 {
-  //TODO update status bits on RETI
+  return 0; //TODO update status bits on RETI
 }
 
 
