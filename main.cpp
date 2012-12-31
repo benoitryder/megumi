@@ -29,8 +29,8 @@ int main(int argc, char* argv[])
     po::options_description opts("Options");
     opts.add_options()
         ("help,h", "this help")
-        ("gdb-server,g", po::value<int>()->value_name("port")->implicit_value(2345), "run a gdbserver on given port")
-        ("sys-ticks", po::value<unsigned int>()->value_name("n"), "stop after given number of ticks")
+        ("gdb-server,g", po::value<int>()->implicit_value(2345), "run a gdbserver on given port")
+        ("sys-ticks", po::value<unsigned int>(), "stop after given number of ticks")
         ("conf-file,f", po::value<std::string>(), "configuration file")
         ;
 
