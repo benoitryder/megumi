@@ -52,7 +52,7 @@ void PMIC::reset()
 {
   status_.data = 0;
   ctrl_.data = 0;
-  //TODO device_->schedule(Device::ClockType::PER, std::bind(&PMIC::step, this));
+  //TODO device_->schedule(ClockType::PER, std::bind(&PMIC::step, this));
 }
 
 unsigned int PMIC::step()

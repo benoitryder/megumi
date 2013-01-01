@@ -460,13 +460,13 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     if(status_.dreif) setIvLvl(IV_DRE, dre_intlvl_);
   } else if(addr == 0x04) { // CTRLB
     ctrlb_.data = v & 0x1F;
-    if(step_event_id_) {
+    if(step_event_) {
       if(!ctrlb_.txen && !ctrlb_.rxen) {
-        device_->unschedule(step_event_id_);
+        device_->unschedule(step_event_);
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
-        step_event_id_ = device_->schedule(Device::ClockType::PER, std::bind(&USART::step, this));
+        step_event_ = device_->schedule(ClockType::PER, std::bind(&USART::step, this));
       }
     }
   } else if(addr == 0x05) { // CTRLC
@@ -529,7 +529,7 @@ void USART::reset()
   baudscale_ = 0;
   rxb_ = 0;
   txb_ = 0;
-  step_event_id_ = 0;
+  step_event_ = 0;
   configure();
   next_recv_tick_ = 0;
   next_send_tick_ = 0;
@@ -543,7 +543,7 @@ unsigned int USART::step()
     int v = link_->recv();
     if(v >= 0) {
       v &= (1 << databits())-1;
-      next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
+      next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(ClockType::PER);
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
@@ -559,7 +559,7 @@ unsigned int USART::step()
     if(!status_.dreif && sys_tick >= next_send_tick_) {
       uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
       if(link_->send(v)) {
-        next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(Device::ClockType::PER);
+        next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(ClockType::PER);
         DLOGF(INFO, "%s send %02X") % name() % v;
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
@@ -578,7 +578,7 @@ unsigned int USART::baudrate() const
   // note: same formula in configure()
   unsigned int bit_ticks = (ctrlb_.clk2x ? 8 : 16) *
       (baudscale_ >= 0 ? ((baudrate_ + 1) << baudscale_) : (baudrate_ >> -baudscale_) + 1);
-  return device_->getClockFrequency(Device::ClockType::PER) / bit_ticks;
+  return device_->getClockFrequency(ClockType::PER) / bit_ticks;
 }
 
 

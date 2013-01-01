@@ -78,7 +78,6 @@ void Device::reset()
   interrupt_wait_instruction_ = true;
   clk_sys_tick_ = 0;
   clk_sys_queue_.clear();
-  next_clock_event_id_ = 1;
 
   // reset CLK first for schedule()
   clk_.reset();
@@ -1619,21 +1618,20 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
 }
 
 
-unsigned int Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks, unsigned int priority)
+const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks, unsigned int priority)
 {
   assert(cb);
-  assert(next_clock_event_id_ != UINT_MAX);
-  unsigned int id = next_clock_event_id_++;
   unsigned int scale = getClockScale(clock);
-  clk_sys_queue_.emplace_back(new ClockEvent{ id, clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale });
+  ClockEvent* ev = new ClockEvent{ clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale };
+    clk_sys_queue_.emplace_back(ev);
   std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
-  return id;
+  return ev;
 }
 
-void Device::unschedule(unsigned int id)
+void Device::unschedule(const ClockEvent* ev)
 {
   for(auto it=clk_sys_queue_.begin(); it!=clk_sys_queue_.end(); ++it) {
-    if((*it)->id == id) {
+    if(it->get() == ev) {
       clk_sys_queue_.erase(it);
       std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
       return;

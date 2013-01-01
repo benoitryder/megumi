@@ -21,6 +21,38 @@
 #include "block/gpior.h"
 
 
+/// Clock types
+enum class ClockType {
+  SYS, CPU,
+  PER, PER2, PER4,
+  ASY,
+};
+
+/// Callback for clock events
+typedef std::function<unsigned int()> ClockCallback;
+
+/// Clock event object
+struct ClockEvent {
+  ClockType clock; ///< Clock the event is scheduled for
+  ClockCallback callback;  ///< Event callback
+  /** @brief Execution priority
+   *
+   * Event with lowest priority is executed first.
+   * The following typical priorities are used:
+   *  - 10: default peripheral handling
+   *  - 100: CPU instructions
+   */
+  unsigned int priority;
+  unsigned int tick;  ///< Due tick
+  unsigned int scale;  ///< Internal ticks per clock ticks
+
+  /// Operator for ClockQueue sorting, lower events are executed later
+  bool operator<(const ClockEvent& o) const {
+    return tick > o.tick || (tick == o.tick && priority < o.priority);
+  }
+};
+
+
 class Device
 {
   friend class block::CPU;
@@ -120,29 +152,19 @@ class Device
   /// Write I/O memory value
   void setIoMem(ioptr_t addr, uint8_t v);
 
-
-  /// Clock types
-  enum class ClockType {
-    SYS, CPU,
-    PER, PER2, PER4,
-    ASY,
-  };
-
-  /// Callback for clock events
-  typedef std::function<unsigned int()> ClockCallback;
   /** @brief Schedule a clock event
    *
    * @param clock  clock the event is scheduled for
    * @param cb  event callback
    * @param ticks  ticks before the first execution
    * @param priority  event priority
-   * @return The ID of the created event (never 0).
+   * @return The created event.
    *
    * @warning The callback must not schedule new events.
    */
-  unsigned int schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1, unsigned int priority=10);
+  const ClockEvent* schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1, unsigned int priority=10);
   /// Unschedule an event
-  void unschedule(unsigned int id);
+  void unschedule(const ClockEvent* ev);
 
   /// Return frequency of a given clock in Hz
   unsigned int getClockFrequency(ClockType clock) const { return clk_.f_sys_ / getClockScale(clock); }
@@ -263,27 +285,6 @@ class Device
   /// Current SYS tick
   unsigned int clk_sys_tick_;
 
-  /// Clock event object
-  struct ClockEvent {
-    unsigned int id;  ///< Unique Event ID
-    ClockType clock; ///< Clock the event is scheduled for
-    ClockCallback callback;  ///< Event callback
-    /** @brief Execution priority
-     *
-     * Event with lowest priority is executed first.
-     * The following typical priorities are used:
-     *  - 10: default peripheral handling
-     *  - 100: CPU instructions
-     */
-    unsigned int priority;
-    unsigned int tick;  ///< Due tick
-    unsigned int scale;  ///< Internal ticks per clock ticks
-
-    /// Operator for ClockQueue sorting, lower events are executed later
-    bool operator<(const ClockEvent& o) const {
-      return tick > o.tick || (tick == o.tick && priority < o.priority);
-    }
-  };
   /** @brief Clock event queue
    *
    * The vector behave as a priority queue with the help of \c std::*_heap
@@ -292,8 +293,6 @@ class Device
   typedef std::vector<std::unique_ptr<ClockEvent>> ClockQueue;
   /// Events scheduled on the SYS clock or derived clocks
   ClockQueue clk_sys_queue_;
-  /// Next clock event ID
-  unsigned int next_clock_event_id_;
   /// Compare function for ClockQueue (pointer) elements
   static bool clock_queue_cmp(const ClockQueue::value_type& a, const ClockQueue::value_type& b) {
     return *a < *b;

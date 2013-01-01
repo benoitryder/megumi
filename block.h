@@ -7,6 +7,7 @@
 #include "common.h"
 
 class Device;
+class ClockEvent;
 
 
 /** @brief XMEGA block
