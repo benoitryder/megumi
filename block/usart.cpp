@@ -525,6 +525,9 @@ void USART::reset()
   status_.data = 0x20;
   ctrlb_.data = 0;
   ctrlc_.data = 0; //TODO check initial value
+  rxc_intlvl_ = INTLVL_NONE;
+  dre_intlvl_ = INTLVL_NONE;
+  txc_intlvl_ = INTLVL_NONE;
   baudrate_ = 0;
   baudscale_ = 0;
   rxb_ = 0;
