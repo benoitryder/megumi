@@ -784,7 +784,7 @@ unsigned int Device::executeNextInstruction()
     cpu_.pc_++;
   }
   // BST
-  else if((opcode & 0xFE08) == 0xF900) {
+  else if((opcode & 0xFE08) == 0xFA00) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t b = opcode & 7;
     DLOGF_OPCODE("BST r%d,%d") % (int)d % (int)b;
