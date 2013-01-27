@@ -126,7 +126,7 @@ unsigned int Device::stepCPU()
   breaked_ = false;
 
   // check for pending interruptions
-  if(instruction_cycles_ == 0 && !interrupt_wait_instruction_ && !cpu_.sreg_.I && !ccpState()) {
+  if(instruction_cycles_ == 0 && !interrupt_wait_instruction_ && cpu_.sreg_.I && !ccpState()) {
     if(processPendingInterrupts()) {
       instruction_cycles_ = 5;
       interrupt_wait_instruction_ = true;
