@@ -62,7 +62,7 @@ void Port::setIo(ioptr_t addr, uint8_t v)
       dir_ = v;
       return;
     case 0x01: // DIRSET
-      dir_ &= v;
+      dir_ |= v;
       return;
     case 0x02: // DIRCLR
       dir_ &= ~v;
@@ -74,7 +74,7 @@ void Port::setIo(ioptr_t addr, uint8_t v)
       out_ = v;
       return;
     case 0x05: // OUTSET
-      out_ &= v;
+      out_ |= v;
       return;
     case 0x06: // OUTCLR
       out_ &= ~v;
