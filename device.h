@@ -28,7 +28,11 @@ enum class ClockType {
   ASY,
 };
 
-/// Callback for clock events
+/** @brief Callback for clock events
+ *
+ * The callback return the number of tick before the next execution, or 0 to
+ * not reexecute the callback.
+ */
 typedef std::function<unsigned int()> ClockCallback;
 
 /// Clock event object
