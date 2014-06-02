@@ -134,6 +134,14 @@ void TC::setIo(ioptr_t addr, uint8_t v)
     } else {
       const unsigned int prescalers[8] = { 0, 1, 2, 4, 8, 64, 256, 1024 };
       prescaler_ = prescalers[v];
+      //TODO how is handle a prescaler change when TC is running?
+      // reschedule step event
+      if(!prescaler_ && step_event_) {
+        device_->unschedule(step_event_);
+        step_event_ = 0;
+      } else if(prescaler_ && !step_event_) {
+        step_event_ = device_->schedule(ClockType::PER, std::bind(&TC::step, this), prescaler_);
+      }
     }
   } else if(addr == 0x01) { // CTRLB
     if(v & 0xF0) {
@@ -190,16 +198,20 @@ void TC::setIo(ioptr_t addr, uint8_t v)
       if(intflags_.ccdif) setIvLvl(IV_ERR, ccd_intlvl_);
     }
   } else if(addr == 0x08) { // CTRLFCLR
-    //TODO
     ctrlf_.data &= ~(v & 0x03);
   } else if(addr == 0x09) { // CTRLFSET
-    //TODO
-    ctrlf_.data |= (v & 0x0F);
+    ctrlf_.data |= (v & 0x03);
+    uint8_t cmd = (v >> 2) & 3;
+    if(cmd == 1) {
+      updateCommand();
+    } else if(cmd == 2) {
+      restartCommand();
+    } else if(cmd == 3) {
+      resetCommand();
+    }
   } else if(addr == 0x0A) { // CTRLGCLR
-    //TODO
     ctrlg_.data &= ~(v & 0x1F);
   } else if(addr == 0x0B) { // CTRLGSET
-    //TODO
     ctrlg_.data |= (v & 0x1F);
   } else if(addr == 0x0C) { // INTFLAGS
     //TODO
@@ -239,28 +251,28 @@ void TC::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x36) { // PERBUFL
     temp_ = v;
   } else if(addr == 0x37) { // PERBUFH
-    //TODO
     perbuf_ = temp_ | (v << 8);
+    ctrlg_.perbv = 1;
   } else if(addr == 0x38) { // CCBBUFL
     temp_ = v;
   } else if(addr == 0x39) { // CCABUFH
-    //TODO
     ccabuf_ = temp_ | (v << 8);
+    ctrlg_.ccabv = 1;
   } else if(addr == 0x3A) { // CCABUFL
     temp_ = v;
   } else if(addr == 0x3B) { // CCBBUFH
-    //TODO
     ccbbuf_ = temp_ | (v << 8);
+    ctrlg_.ccbbv = 1;
   } else if(addr == 0x3C) { // CCCBUFL
     temp_ = v;
   } else if(addr == 0x3D) { // CCCBUFH
-    //TODO
     cccbuf_ = temp_ | (v << 8);
+    ctrlg_.cccbv = 1;
   } else if(addr == 0x3E) { // CCDBUFL
     temp_ = v;
   } else if(addr == 0x3F) { // CCDBUFH
-    //TODO
     ccdbuf_ = temp_ | (v << 8);
+    ctrlg_.ccdbv = 1;
   } else {
     LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
   }
@@ -269,8 +281,15 @@ void TC::setIo(ioptr_t addr, uint8_t v)
 
 void TC::executeIv(ivnum_t iv)
 {
-  //TODO
   assert(iv < IV_COUNT);
+  switch(iv) {
+    case IV_OVF: intflags_.ovfif = 0; break;
+    case IV_ERR: intflags_.errif = 0; break;
+    case IV_CCA: intflags_.ccaif = 0; break;
+    case IV_CCB: intflags_.ccbif = 0; break;
+    case IV_CCC: intflags_.cccif = 0; break;
+    case IV_CCD: intflags_.ccdif = 0; break;
+  }
 }
 
 
@@ -307,7 +326,132 @@ void TC::reset()
 
 unsigned int TC::step()
 {
-  return 0; //TODO
+  uint8_t wgmode = ctrlb_.wgmode;
+  uint8_t top = ctrlb_.wgmode == WGMODE_FRQ ? cca_ : per_;
+  bool trigger_ovf = false;
+  DLOGF(NOTICE, "[%lu] %s: CNT = %u, DIR = %d, WGMODE = %d, PER = %u, CCA = %u") % device_->clk_sys_tick() % name() % cnt_ % (int)ctrlf_.dir % (int)wgmode % per_ % cca_;
+  //TODO handle minimum resolution (PER=3 for slopes)
+
+  if(ctrlf_.dir) {
+    // down-counting
+    if(cnt_ == 0) {
+      // reset to TOP
+      cnt_ = top;
+    }
+
+    cnt_--;
+    if(cnt_ == 0) {
+      // BOTTOM reached
+      trigger_ovf = wgmode != WGMODE_DSTOP;
+      processUpdate();
+      if(wgmode > WGMODE_DSTOP) {
+        // dual-slop: reverse direction
+        ctrlf_.dir = 0;
+      }
+    }
+
+  } else {
+    // up-counting
+    if(cnt_ == top) {
+      // reset to BOTTOM
+      cnt_ = 0;
+    }
+
+    cnt_++;
+    if(cnt_ == top) {
+      // TOP reached
+      trigger_ovf = wgmode != WGMODE_DSBOTTOM;
+      processUpdate();
+      if(wgmode > WGMODE_DSTOP) {
+        // dual-slop: reverse direction
+        ctrlf_.dir = 0;
+      }
+    }
+  }
+
+  //TODO compare to CCx to update output pins on UPDATE
+
+  if(trigger_ovf) {
+    intflags_.ovfif = 1;
+    setIvLvl(IV_OVF, ovf_intlvl_);
+  }
+
+  // process CCxIF interrupts
+  if(cnt_ == cca_) {
+    intflags_.ccaif = 1;
+    setIvLvl(IV_CCA, cca_intlvl_);
+  }
+  if(cnt_ == ccb_) {
+    intflags_.ccbif = 1;
+    setIvLvl(IV_CCB, ccb_intlvl_);
+  }
+  if(type_ != 0) {
+    if(cnt_ == ccc_) {
+      intflags_.cccif = 1;
+      setIvLvl(IV_CCC, ccc_intlvl_);
+    }
+    if(cnt_ == ccd_) {
+      intflags_.ccdif = 1;
+      setIvLvl(IV_CCD, ccd_intlvl_);
+    }
+  }
+
+  return prescaler_;
+}
+
+
+void TC::processUpdate()
+{
+  // flush double-buffered values
+  if(ctrlg_.perbv) {
+    per_ = perbuf_;
+  }
+  if(ctrlg_.ccabv) {
+    cca_ = ccabuf_;
+  }
+  if(ctrlg_.ccbbv) {
+    ccb_ = ccbbuf_;
+  }
+  if(ctrlg_.cccbv) {
+    ccc_ = cccbuf_;
+  }
+  if(ctrlg_.ccdbv) {
+    ccd_ = ccdbuf_;
+  }
+  // clear all BV flags
+  ctrlg_.data = 0;
+  //TODO are CCx copied before or after comparison for CCxIF?
+}
+
+
+void TC::updateCommand()
+{
+  if(ctrlf_.lupd) {
+    // ignore UPDATE command if the lock update bit is set
+    return;
+  }
+
+  processUpdate();
+}
+
+
+void TC::restartCommand()
+{
+  // reset counter direction
+  ctrlf_.dir = 0;
+  // reset all compare outputs
+  ctrlc_.data = 0;
+}
+
+
+void TC::resetCommand()
+{
+  if(!off()) {
+    LOGF(WARNING, "RESET command triggered but TC is not OFF");
+    return;
+  }
+
+  reset();
 }
 
 

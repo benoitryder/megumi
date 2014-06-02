@@ -40,7 +40,26 @@ class TC: public Block
   /// Return true if TC is in OFF state
   bool off() const { return prescaler_ == 0; }
 
+  enum WGMODE {
+    WGMODE_NORMAL = 0,
+    WGMODE_FRQ = 1,
+    WGMODE_SINGLESLOPE = 3,
+    WGMODE_DSTOP = 5,
+    WGMODE_DSBOTH = 6,
+    WGMODE_DSBOTTOM = 7,
+  };
+
+  /// Trigger an UPDATE command
+  void updateCommand();
+  /// Trigger a RESTART command
+  void restartCommand();
+  /// Trigger a RESET command
+  void resetCommand();
+
  private:
+  /// Process an UPDATE condition
+  void processUpdate();
+
   unsigned int type_; // 0 (TCx0) or 1 (TCx1)
 
   /// Clock source prescaler value
