@@ -463,6 +463,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     if(step_event_) {
       if(!ctrlb_.txen && !ctrlb_.rxen) {
         device_->unschedule(step_event_);
+        step_event_ = 0;
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
