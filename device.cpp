@@ -1623,7 +1623,7 @@ const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned i
   assert(cb);
   unsigned int scale = getClockScale(clock);
   ClockEvent* ev = new ClockEvent{ clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale };
-    clk_sys_queue_.emplace_back(ev);
+  clk_sys_queue_.emplace_back(ev);
   std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
   return ev;
 }
