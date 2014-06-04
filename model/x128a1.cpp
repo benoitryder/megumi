@@ -33,7 +33,15 @@ ATxmega128A1::ATxmega128A1(ConfTree& conf):
     usartE0_(this, block::instances::USARTE0),
     usartE1_(this, block::instances::USARTE1),
     usartF0_(this, block::instances::USARTF0),
-    usartF1_(this, block::instances::USARTF1)
+    usartF1_(this, block::instances::USARTF1),
+    tcC0_(this, block::instances::TCC0),
+    tcC1_(this, block::instances::TCC1),
+    tcD0_(this, block::instances::TCD0),
+    tcD1_(this, block::instances::TCD1),
+    tcE0_(this, block::instances::TCE0),
+    tcE1_(this, block::instances::TCE1),
+    tcF0_(this, block::instances::TCF0),
+    tcF1_(this, block::instances::TCF1)
 {
   connectBlock(&portA_);
   connectBlock(&portB_);
@@ -54,6 +62,14 @@ ATxmega128A1::ATxmega128A1(ConfTree& conf):
   connectBlock(&usartE1_);
   connectBlock(&usartF0_);
   connectBlock(&usartF1_);
+  connectBlock(&tcC0_);
+  connectBlock(&tcC1_);
+  connectBlock(&tcD0_);
+  connectBlock(&tcD1_);
+  connectBlock(&tcE0_);
+  connectBlock(&tcE1_);
+  connectBlock(&tcF0_);
+  connectBlock(&tcF1_);
 }
 
 ATxmega128A1::~ATxmega128A1()

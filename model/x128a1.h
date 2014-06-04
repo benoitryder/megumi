@@ -4,6 +4,7 @@
 #include "../device.h"
 #include "../block/port.h"
 #include "../block/usart.h"
+#include "../block/tc.h"
 
 namespace model {
 
@@ -37,6 +38,14 @@ class ATxmega128A1: public Device
   block::USART usartE1_;
   block::USART usartF0_;
   block::USART usartF1_;
+  block::TC tcC0_;
+  block::TC tcC1_;
+  block::TC tcD0_;
+  block::TC tcD1_;
+  block::TC tcE0_;
+  block::TC tcE1_;
+  block::TC tcF0_;
+  block::TC tcF1_;
 };
 
 }
