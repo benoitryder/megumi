@@ -1,8 +1,8 @@
 /** @file
  * @brief Parse HEX files
  */
-#ifndef INPUT_HEX_H__
-#define INPUT_HEX_H__
+#ifndef INPUT_HEX_H
+#define INPUT_HEX_H
 
 #include <string>
 #include <vector>

@@ -1,5 +1,5 @@
-#ifndef BLOCK_PORT_H__
-#define BLOCK_PORT_H__
+#ifndef BLOCK_PORT_H
+#define BLOCK_PORT_H
 
 #include "../block.h"
 

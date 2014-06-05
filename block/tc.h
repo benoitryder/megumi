@@ -1,5 +1,5 @@
-#ifndef BLOCK_TC_H__
-#define BLOCK_TC_H__
+#ifndef BLOCK_TC_H
+#define BLOCK_TC_H
 
 #include <memory>
 #include "../block.h"

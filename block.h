@@ -1,5 +1,5 @@
-#ifndef BLOCK_H__
-#define BLOCK_H__
+#ifndef BLOCK_H
+#define BLOCK_H
 
 #include <stdexcept>
 #include <string>

@@ -1,5 +1,5 @@
-#ifndef BLOCK_PMIC_H__
-#define BLOCK_PMIC_H__
+#ifndef BLOCK_PMIC_H
+#define BLOCK_PMIC_H
 
 #include "../block.h"
 

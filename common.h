@@ -1,5 +1,5 @@
-#ifndef COMMON_H__
-#define COMMON_H__
+#ifndef COMMON_H
+#define COMMON_H
 
 #include <limits>
 #include <cstdint>

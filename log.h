@@ -1,5 +1,5 @@
-#ifndef LOG_H__
-#define LOG_H__
+#ifndef LOG_H
+#define LOG_H
 
 #include <sstream>
 #include <boost/format.hpp>

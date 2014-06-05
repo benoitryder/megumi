@@ -1,5 +1,5 @@
-#ifndef MODEL_XMEGA128A1_H__
-#define MODEL_XMEGA128A1_H__
+#ifndef MODEL_XMEGA128A1_H
+#define MODEL_XMEGA128A1_H
 
 #include "../device.h"
 #include "../block/port.h"

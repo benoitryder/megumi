@@ -1,5 +1,5 @@
-#ifndef BLOCK_CPU_H__
-#define BLOCK_CPU_H__
+#ifndef BLOCK_CPU_H
+#define BLOCK_CPU_H
 
 #include "../block.h"
 

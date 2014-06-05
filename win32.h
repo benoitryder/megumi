@@ -1,5 +1,5 @@
-#ifndef WIN32_H__
-#define WIN32_H__
+#ifndef WIN32_H
+#define WIN32_H
 
 #include <windows.h>
 #undef ERROR

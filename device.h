@@ -1,8 +1,8 @@
 /** @file
  * @brief AVR Xmega device
  */
-#ifndef DEVICE_H__
-#define DEVICE_H__
+#ifndef DEVICE_H
+#define DEVICE_H
 
 #include <map>
 #include <vector>

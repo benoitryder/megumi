@@ -1,5 +1,5 @@
-#ifndef BLOCK_GPIOR_H__
-#define BLOCK_GPIOR_H__
+#ifndef BLOCK_GPIOR_H
+#define BLOCK_GPIOR_H
 
 #include <array>
 #include "../block.h"

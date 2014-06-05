@@ -1,5 +1,5 @@
-#ifndef BLOCK_CLK_H__
-#define BLOCK_CLK_H__
+#ifndef BLOCK_CLK_H
+#define BLOCK_CLK_H
 
 #include "../block.h"
 

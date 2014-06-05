@@ -1,5 +1,5 @@
-#ifndef BLOCK_OSC_H__
-#define BLOCK_OSC_H__
+#ifndef BLOCK_OSC_H
+#define BLOCK_OSC_H
 
 #include "../block.h"
 

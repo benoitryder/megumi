@@ -1,5 +1,5 @@
-#ifndef BLOCK_USART_H__
-#define BLOCK_USART_H__
+#ifndef BLOCK_USART_H
+#define BLOCK_USART_H
 
 #include <memory>
 #include "../block.h"
