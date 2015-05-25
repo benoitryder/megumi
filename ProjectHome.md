@@ -1,0 +1,1 @@
+megumi is an emulator for Atmel AVR XMEGA microcontrollers.
