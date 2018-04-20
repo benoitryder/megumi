@@ -138,7 +138,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
       // reschedule step event
       if(!prescaler_ && step_event_) {
         device_.unschedule(step_event_);
-        step_event_ = 0;
+        step_event_ = nullptr;
       } else if(prescaler_ && !step_event_) {
         step_event_ = device_.schedule(ClockType::PER, std::bind(&TC::step, this), prescaler_);
       }
@@ -320,7 +320,7 @@ void TC::reset()
   cccbuf_ = 0;
   ccdbuf_ = 0;
 
-  step_event_ = 0;
+  step_event_ = nullptr;
 }
 
 

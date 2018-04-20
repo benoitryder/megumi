@@ -56,18 +56,18 @@ class USARTLinkFile: public USARTLink
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
     USARTLink(usart), state_read_{}, state_write_{}
 {
-  h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+  h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
   if(h_ == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": failed to open link file "+path);
   }
 
-  state_read_.o.hEvent = CreateEvent(NULL, true, false, NULL);
+  state_read_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
   if(!state_read_.o.hEvent) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": CreateEvent() failed");
   }
-  state_write_.o.hEvent = CreateEvent(NULL, true, false, NULL);
+  state_write_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
   if(!state_write_.o.hEvent) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": CreateEvent() failed");
@@ -86,7 +86,7 @@ int USARTLinkFile::recv()
 {
   if(!state_read_.waiting) {
     ResetEvent(state_read_.o.hEvent);
-    if(!ReadFile(h_, &state_read_.data, 1, NULL, &state_read_.o)) {
+    if(!ReadFile(h_, &state_read_.data, 1, nullptr, &state_read_.o)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": read error");
@@ -116,7 +116,7 @@ bool USARTLinkFile::send(uint16_t v)
   if(!state_write_.waiting) {
     ResetEvent(state_write_.o.hEvent);
     state_write_.data = v;
-    if(!WriteFile(h_, &state_write_.data, 1, NULL, &state_write_.o)) {
+    if(!WriteFile(h_, &state_write_.data, 1, nullptr, &state_write_.o)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": write error");
@@ -463,7 +463,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     if(step_event_) {
       if(!ctrlb_.txen && !ctrlb_.rxen) {
         device_.unschedule(step_event_);
-        step_event_ = 0;
+        step_event_ = nullptr;
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
@@ -533,7 +533,7 @@ void USART::reset()
   baudscale_ = 0;
   rxb_ = 0;
   txb_ = 0;
-  step_event_ = 0;
+  step_event_ = nullptr;
   configure();
   next_recv_tick_ = 0;
   next_send_tick_ = 0;
