@@ -63,16 +63,16 @@ class USART: public Block
   };
 
  public:
-  USART(Device* dev, const Instance<USART>& instance);
+  USART(Device& dev, const Instance<USART>& instance);
   virtual ~USART();
 
-  virtual ioptr_t io_size() const { return IO_SIZE; }
-  virtual ivnum_t iv_count() const { return IV_COUNT; }
+  ioptr_t io_size() const override { return IO_SIZE; }
+  ivnum_t iv_count() const override { return IV_COUNT; }
 
-  virtual uint8_t getIo(ioptr_t addr);
-  virtual void setIo(ioptr_t addr, uint8_t v);
-  virtual void executeIv(ivnum_t iv);
-  virtual void reset();
+  uint8_t getIo(ioptr_t addr) override;
+  void setIo(ioptr_t addr, uint8_t v) override;
+  void executeIv(ivnum_t iv) override;
+  void reset() override;
   unsigned int step();
 
   /// Parity values

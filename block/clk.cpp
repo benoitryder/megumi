@@ -5,7 +5,7 @@
 namespace block {
 
 
-CLK::CLK(Device* dev):
+CLK::CLK(Device& dev):
     Block(dev, "CLK", 0x0040)
 {
 }
@@ -39,7 +39,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
     SCLKSEL vsclk = static_cast<SCLKSEL>(v & 0x7);
     if(vsclk > SCLKSEL_PLL) {
       LOGF(ERROR, "invalid SCLKSEL value");
-    } else if(device_->ccpState() & Device::CCP_IOREG) {
+    } else if(device_.ccpState() & Device::CCP_IOREG) {
       if(vsclk == SCLKSEL_XOSC || vsclk == SCLKSEL_XOSC) {
         //TODO
         LOGF(WARNING, "XOSC and PLL clock sources not supported");
@@ -63,7 +63,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
     }
   } else if(addr == 0x02) { // LOCK
     if(!locked_ && v) {
-      if(device_->ccpState() & Device::CCP_IOREG) {
+      if(device_.ccpState() & Device::CCP_IOREG) {
         LOGF(NOTICE, "locked CLK.CTRL and CLK.PSCTRL");
         locked_ = true;
       } else {
@@ -119,7 +119,7 @@ void CLK::updateFrequencies()
   prescaler_b_ = (psctrl_.psbcdiv & 2) ? (1 << (4-psctrl_.psbcdiv)) : 1;
   prescaler_c_ = (1 << (psctrl_.psbcdiv & 1));
 
-  device_->onClockConfigChange();
+  device_.onClockConfigChange();
 }
 
 

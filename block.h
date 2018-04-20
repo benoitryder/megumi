@@ -20,7 +20,7 @@ class Block
  public:
   typedef boost::property_tree::ptree ConfTree;
 
-  Block(Device* device_, const std::string& name, ioptr_t io_addr, ivnum_t iv_base=0);
+  Block(Device& device_, const std::string& name, ioptr_t io_addr, ivnum_t iv_base=0);
   virtual ~Block();
 
   const std::string& name() const { return name_; }
@@ -46,7 +46,7 @@ class Block
 
  protected:
   /// Device the block is connected to
-  Device* const device_;
+  Device& device_;
   /// Set level of a block's IV, relative to IV base
   void setIvLvl(ivnum_t iv, IntLvl lvl) const;
 

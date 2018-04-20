@@ -5,7 +5,7 @@
 namespace block {
 
 
-Port::Port(Device* dev, const Instance<Port>& instance):
+Port::Port(Device& dev, const Instance<Port>& instance):
     Block(dev, instance.name, instance.io_addr, instance.iv_base)
 {
 }

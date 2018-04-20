@@ -112,7 +112,7 @@ void build_hex_be(std::string* data, unsigned int v)
 
 
 
-GdbServer::GdbServer(Device* dev):
+GdbServer::GdbServer(Device& dev):
     device_(dev),
     sock_client_(-1)
 {
@@ -192,10 +192,10 @@ void GdbServer::execContinue()
   execStep();
   for(;;) {
     // handle BREAK and breakpoints
-    device_->step();
-    if(breakpoints_.find(device_->getPC()) != breakpoints_.end()) {
+    device_.step();
+    if(breakpoints_.find(device_.getPC()) != breakpoints_.end()) {
       return;
-    } else if(device_->breaked()) {
+    } else if(device_.breaked()) {
       return;
     }
   }
@@ -205,10 +205,10 @@ void GdbServer::execContinue()
 void GdbServer::execStep()
 {
   // skip steps which does not change PC (e.g. multi-cycles instructions)
-  flashptr_t pc = device_->getPC();
+  flashptr_t pc = device_.getPC();
   do {
-    device_->step();
-  } while(pc == device_->getPC());
+    device_.step();
+  } while(pc == device_.getPC());
 }
 
 
@@ -264,12 +264,12 @@ void GdbServer::processPacket(const std::string& data)
       //   36-39  PC (4-byte)
       case 'g': {
         reply.reserve(2*39);
-        for(uint8_t v : device_->regfile()) {
+        for(uint8_t v : device_.regfile()) {
           build_hex_le<8>(&reply, v);
         }
-        build_hex_le<8>(&reply, device_->getSREG().data);
-        build_hex_le<16>(&reply, device_->getSP());
-        build_hex_le<32>(&reply, 2*device_->getPC());
+        build_hex_le<8>(&reply, device_.getSREG().data);
+        build_hex_le<16>(&reply, device_.getSP());
+        build_hex_le<32>(&reply, 2*device_.getPC());
       } break;
 
       // write general registers
@@ -279,12 +279,12 @@ void GdbServer::processPacket(const std::string& data)
           throw GdbServerError("unexpected data size");
         }
         const char* p = data.data()+1;
-        for(uint8_t& v : device_->regfile()) {
+        for(uint8_t& v : device_.regfile()) {
           v = parse_hex_le<8>(p++);
         }
-        device_->setSREG(parse_hex_le<8>(p++));
-        device_->setSP(parse_hex_le<16>(p)); p += 2;
-        device_->setPC(parse_hex_le<32>(p)/2); p += 4;
+        device_.setSREG(parse_hex_le<8>(p++));
+        device_.setSP(parse_hex_le<16>(p)); p += 2;
+        device_.setPC(parse_hex_le<32>(p)/2); p += 4;
         reply = "OK";
       } break;
 
@@ -296,13 +296,13 @@ void GdbServer::processPacket(const std::string& data)
         unsigned int n;
         parse_hex_be_until(&n, data.c_str()+1, '\0');
         if(n < 32) {
-          build_hex_le<8>(&reply, device_->regfile()[n]);
+          build_hex_le<8>(&reply, device_.regfile()[n]);
         } else if(n == 32) {
-          build_hex_le<8>(&reply, device_->getSREG().data);
+          build_hex_le<8>(&reply, device_.getSREG().data);
         } else if(n == 33) {
-          build_hex_le<16>(&reply, device_->getSP());
+          build_hex_le<16>(&reply, device_.getSP());
         } else if(n == 34) {
-          build_hex_le<32>(&reply, 2*device_->getPC());
+          build_hex_le<32>(&reply, 2*device_.getPC());
         } else {
           throw GdbServerError("invalid register number");
         }
@@ -317,13 +317,13 @@ void GdbServer::processPacket(const std::string& data)
         const char *p = data.c_str()+1;
         p = parse_hex_be_until(&n, p, '=');
         if(n < 32) {
-          device_->regfile()[n] = parse_hex_le<8>(p);
+          device_.regfile()[n] = parse_hex_le<8>(p);
         } else if(n == 32) {
-          device_->setSREG(parse_hex_le<8>(p));
+          device_.setSREG(parse_hex_le<8>(p));
         } else if(n == 33) {
-          device_->setSP(parse_hex_le<16>(p));
+          device_.setSP(parse_hex_le<16>(p));
         } else if(n == 34) {
-          device_->setPC(parse_hex_le<32>(p)/2);
+          device_.setPC(parse_hex_le<32>(p)/2);
         } else {
           throw GdbServerError("invalid register number");
         }
@@ -368,7 +368,7 @@ void GdbServer::processPacket(const std::string& data)
         if(*p != '\0') {
           unsigned int addr;
           parse_hex_be_until(&addr, p, '\0');
-          device_->setPC(addr/2);
+          device_.setPC(addr/2);
         }
         execContinue();
         reply = buildStopReply();
@@ -380,7 +380,7 @@ void GdbServer::processPacket(const std::string& data)
         if(*p != '\0') {
           unsigned int addr;
           parse_hex_be_until(&addr, p, '\0');
-          device_->setPC(addr/2);
+          device_.setPC(addr/2);
         }
         execStep();
         reply = buildStopReply();
@@ -561,10 +561,10 @@ uint8_t GdbServer::getGdbMem(unsigned int addr)
   // Constants used below are retrieved from GDB sources, in avr-tdep.c.
 
   if(addr & 0x00f00000) {
-    return device_->getDataMem(addr & 0xfffff);
+    return device_.getDataMem(addr & 0xfffff);
   } else {
     //TODO check offset for overflow?
-    uint16_t word = device_->flash_data()[addr/2];
+    uint16_t word = device_.flash_data()[addr/2];
     return addr % 2 ? (word >> 8) : (word & 0xFF);
   }
 }
@@ -573,16 +573,16 @@ void GdbServer::setGdbMem(unsigned int addr, uint8_t v)
 {
   // see comments in getGdbMem() for addressing values
   if(addr & 0x00f00000) {
-    device_->setDataMem(addr & 0xfffff, v);
+    device_.setDataMem(addr & 0xfffff, v);
   } else {
     //TODO check offset for overflow?
-    uint16_t word = device_->flash_data()[addr/2];
+    uint16_t word = device_.flash_data()[addr/2];
     if(addr % 2) {
       word = (word & 0x00FF) | (v << 8);
     } else {
       word = (word & 0xFF00) | v;
     }
-    device_->flash_data()[addr/2] = word;
+    device_.flash_data()[addr/2] = word;
   }
 }
 
@@ -590,11 +590,11 @@ void GdbServer::setGdbMem(unsigned int addr, uint8_t v)
 std::string GdbServer::buildStopReply() const
 {
   std::string reply = "T0520:";
-  build_hex_le<8>(&reply, device_->getSREG().data);
+  build_hex_le<8>(&reply, device_.getSREG().data);
   reply += ";21:";
-  build_hex_le<16>(&reply, device_->getSP());
+  build_hex_le<16>(&reply, device_.getSP());
   reply += ";22:";
-  build_hex_le<32>(&reply, 2*device_->getPC());
+  build_hex_le<32>(&reply, 2*device_.getPC());
   reply += ";";
   return reply;
 }

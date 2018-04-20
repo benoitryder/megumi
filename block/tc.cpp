@@ -6,7 +6,7 @@
 namespace block {
 
 
-TC::TC(Device* dev, const Instance<TC>& instance):
+TC::TC(Device& dev, const Instance<TC>& instance):
     Block(dev, instance.name, instance.io_addr, instance.iv_base)
 {
   // set type from block name
@@ -137,10 +137,10 @@ void TC::setIo(ioptr_t addr, uint8_t v)
       //TODO how is handle a prescaler change when TC is running?
       // reschedule step event
       if(!prescaler_ && step_event_) {
-        device_->unschedule(step_event_);
+        device_.unschedule(step_event_);
         step_event_ = 0;
       } else if(prescaler_ && !step_event_) {
-        step_event_ = device_->schedule(ClockType::PER, std::bind(&TC::step, this), prescaler_);
+        step_event_ = device_.schedule(ClockType::PER, std::bind(&TC::step, this), prescaler_);
       }
     }
   } else if(addr == 0x01) { // CTRLB
@@ -329,7 +329,7 @@ unsigned int TC::step()
   uint8_t wgmode = ctrlb_.wgmode;
   uint8_t top = ctrlb_.wgmode == WGMODE_FRQ ? cca_ : per_;
   bool trigger_ovf = false;
-  DLOGF(NOTICE, "[%lu] %s: CNT = %u, DIR = %d, WGMODE = %d, PER = %u, CCA = %u") % device_->clk_sys_tick() % name() % cnt_ % (int)ctrlf_.dir % (int)wgmode % per_ % cca_;
+  DLOGF(NOTICE, "[%lu] %s: CNT = %u, DIR = %d, WGMODE = %d, PER = %u, CCA = %u") % device_.clk_sys_tick() % name() % cnt_ % (int)ctrlf_.dir % (int)wgmode % per_ % cca_;
   //TODO handle minimum resolution (PER=3 for slopes)
 
   if(ctrlf_.dir) {

@@ -22,16 +22,16 @@ class TC: public Block
   };
 
  public:
-  TC(Device* dev, const Instance<TC>& instance);
+  TC(Device& dev, const Instance<TC>& instance);
   virtual ~TC();
 
-  virtual ioptr_t io_size() const { return IO_SIZE; }
-  virtual ivnum_t iv_count() const { return type_ == 0 ? IV_COUNT : IV_CCC; }
+  ioptr_t io_size() const override { return IO_SIZE; }
+  ivnum_t iv_count() const override { return type_ == 0 ? IV_COUNT : IV_CCC; }
 
-  virtual uint8_t getIo(ioptr_t addr);
-  virtual void setIo(ioptr_t addr, uint8_t v);
-  virtual void executeIv(ivnum_t iv);
-  virtual void reset();
+  uint8_t getIo(ioptr_t addr) override;
+  void setIo(ioptr_t addr, uint8_t v) override;
+  void executeIv(ivnum_t iv) override;
+  void reset() override;
   unsigned int step();
 
   /// Return TC type (0 or 1)

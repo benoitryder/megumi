@@ -5,7 +5,7 @@
 namespace block {
 
 
-OSC::OSC(Device* dev):
+OSC::OSC(Device& dev):
     Block(dev, "OSC", 0x0050, 1)
 {
 }
@@ -55,7 +55,7 @@ void OSC::setIo(ioptr_t addr, uint8_t v)
     vreg.data = v & 0x03;
     // XOSCFDEN
     if(!xoscfail_.xoscfden && vreg.xoscfden) {
-      if(device_->ccpState() & Device::CCP_IOREG) {
+      if(device_.ccpState() & Device::CCP_IOREG) {
         xoscfail_.xoscfden = 1;
       } else {
         LOGF(ERROR, "cannot set XOSCFAIL.XOSCFDEN: protected by CCP");

@@ -6,10 +6,10 @@
 namespace block {
 
 
-CPU::CPU(Device* dev):
+CPU::CPU(Device& dev):
     Block(dev, "CPU", 0x0030),
-    ramp_mask_((dev->mem_exsram_start_ + dev->mem_exsram_size_) >> 8),
-    eind_mask_(dev->flash_size_ >> 9)
+    ramp_mask_((dev.mem_exsram_start_ + dev.mem_exsram_size_) >> 8),
+    eind_mask_(dev.flash_size_ >> 9)
 {
 }
 
@@ -82,10 +82,10 @@ void CPU::reset()
   rampy_ = 0;
   rampz_ = 0;
   eind_ = 0;
-  sp_ = device_->mem_exsram_start_-1;
+  sp_ = device_.mem_exsram_start_-1;
   sreg_.data = 0;
   pc_ = 0; //TODO may start on bootloader
-  device_->schedule(ClockType::PER, std::bind(&CPU::step, this));
+  device_.schedule(ClockType::PER, std::bind(&CPU::step, this));
 }
 
 unsigned int CPU::step()

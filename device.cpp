@@ -26,11 +26,11 @@ Device::Device(const ModelConf& model, ConfTree& conf):
     flash_data_(flash_size_/2, 0xFFFF),
     sram_data_(mem_sram_size_),
     // blocks
-    cpu_(this),
-    clk_(this),
-    osc_(this),
-    pmic_(this),
-    gpior_(this)
+    cpu_(*this),
+    clk_(*this),
+    osc_(*this),
+    pmic_(*this),
+    gpior_(*this)
 {
   // check memory map values
   // order and which values are checked are important to detect possible

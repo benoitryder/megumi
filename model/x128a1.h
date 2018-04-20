@@ -16,7 +16,7 @@ class ATxmega128A1: public Device
   ATxmega128A1(ConfTree& conf);
   virtual ~ATxmega128A1();
 
-  virtual const char* model_name() const { return "ATxmega128A1"; }
+  const char* model_name() const override { return "ATxmega128A1"; }
 
   // blocks
   block::Port portA_;

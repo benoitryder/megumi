@@ -365,7 +365,7 @@ void USARTLinkSerial::configure()
 
 // USART block
 
-USART::USART(Device* dev, const Instance<USART>& instance):
+USART::USART(Device& dev, const Instance<USART>& instance):
     Block(dev, instance.name, instance.io_addr, instance.iv_base)
 {
   const ConfTree& conf = this->conf();
@@ -392,14 +392,14 @@ USART::USART(Device* dev, const Instance<USART>& instance):
         link_path = "\\\\.\\" + link_path;
       }
 #endif
-      link_ = std::unique_ptr<USARTLink>(new USARTLinkSerial(*this, link_path));
+      link_ = std::make_unique<USARTLinkSerial>(*this, link_path);
     } else if(link_type == "file") {
-      link_ = std::unique_ptr<USARTLink>(new USARTLinkFile(*this, link_path));
+      link_ = std::make_unique<USARTLinkFile>(*this, link_path);
     } else {
       throw std::runtime_error(name() + ": invalid link_type value");
     }
   } else {
-    link_ = std::unique_ptr<USARTLink>(new USARTLinkDummy(*this));
+    link_ = std::make_unique<USARTLinkDummy>(*this);
   }
 }
 
@@ -462,12 +462,12 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     ctrlb_.data = v & 0x1F;
     if(step_event_) {
       if(!ctrlb_.txen && !ctrlb_.rxen) {
-        device_->unschedule(step_event_);
+        device_.unschedule(step_event_);
         step_event_ = 0;
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
-        step_event_ = device_->schedule(ClockType::PER, std::bind(&USART::step, this));
+        step_event_ = device_.schedule(ClockType::PER, std::bind(&USART::step, this));
       }
     }
   } else if(addr == 0x05) { // CTRLC
@@ -542,12 +542,12 @@ void USART::reset()
 
 unsigned int USART::step()
 {
-  unsigned int sys_tick = device_->clk_sys_tick();
+  unsigned int sys_tick = device_.clk_sys_tick();
   if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
     int v = link_->recv();
     if(v >= 0) {
       v &= (1 << databits())-1;
-      next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(ClockType::PER);
+      next_recv_tick_ = sys_tick + frame_sys_ticks_ * device_.getClockScale(ClockType::PER);
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
@@ -563,7 +563,7 @@ unsigned int USART::step()
     if(!status_.dreif && sys_tick >= next_send_tick_) {
       uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
       if(link_->send(v)) {
-        next_send_tick_ = sys_tick + frame_sys_ticks_ * device_->getClockScale(ClockType::PER);
+        next_send_tick_ = sys_tick + frame_sys_ticks_ * device_.getClockScale(ClockType::PER);
         DLOGF(INFO, "%s send %02X") % name() % v;
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
@@ -582,7 +582,7 @@ unsigned int USART::baudrate() const
   // note: same formula in configure()
   unsigned int bit_ticks = (ctrlb_.clk2x ? 8 : 16) *
       (baudscale_ >= 0 ? ((baudrate_ + 1) << baudscale_) : (baudrate_ >> -baudscale_) + 1);
-  return device_->getClockFrequency(ClockType::PER) / bit_ticks;
+  return device_.getClockFrequency(ClockType::PER) / bit_ticks;
 }
 
 

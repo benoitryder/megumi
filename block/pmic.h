@@ -14,14 +14,14 @@ class PMIC: public Block
   static const ioptr_t IO_SIZE = 3;
 
  public:
-  PMIC(Device* dev);
+  PMIC(Device& dev);
   virtual ~PMIC();
 
-  virtual ioptr_t io_size() const { return IO_SIZE; }
+  ioptr_t io_size() const override { return IO_SIZE; }
 
-  virtual uint8_t getIo(ioptr_t addr);
-  virtual void setIo(ioptr_t addr, uint8_t v);
-  virtual void reset();
+  uint8_t getIo(ioptr_t addr) override;
+  void setIo(ioptr_t addr, uint8_t v) override;
+  void reset() override;
   unsigned int step();
 
  private:

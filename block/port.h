@@ -14,15 +14,15 @@ class Port: public Block
   static const ivnum_t IV_COUNT = 2;
 
  public:
-  Port(Device* dev, const Instance<Port>& instance);
+  Port(Device& dev, const Instance<Port>& instance);
   virtual ~Port();
 
-  virtual ioptr_t io_size() const { return IO_SIZE; }
-  virtual ivnum_t iv_count() const { return IV_COUNT; }
+  ioptr_t io_size() const override { return IO_SIZE; }
+  ivnum_t iv_count() const override { return IV_COUNT; }
 
-  virtual uint8_t getIo(ioptr_t addr);
-  virtual void setIo(ioptr_t addr, uint8_t v);
-  virtual void reset();
+  uint8_t getIo(ioptr_t addr) override;
+  void setIo(ioptr_t addr, uint8_t v) override;
+  void reset() override;
   //TODO interrupts
   //TODO input pin values, received from the outside
 

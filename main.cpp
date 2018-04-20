@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
         std::cerr << "--gdb-server and --sys-ticks are incompatible" << std::endl;
         return 1;
       }
-      GdbServer gdbserver(&device);
+      GdbServer gdbserver(device);
       gdbserver.run(vm["gdb-server"].as<int>());
     } else if(vm.count("sys-ticks")) {
       unsigned int ticks = vm["sys-ticks"].as<unsigned int>();

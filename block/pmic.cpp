@@ -6,7 +6,7 @@
 namespace block {
 
 
-PMIC::PMIC(Device* dev):
+PMIC::PMIC(Device& dev):
     Block(dev, "PMIC", 0x00A0)
 {
 }
@@ -38,7 +38,7 @@ void PMIC::setIo(ioptr_t addr, uint8_t v)
   if(addr == 0x01) { // INTPRI
     LOGF(WARNING, "I/O write %s + 0x%02X: INTPRI not implemented") % name() % addr;
   } else if(addr == 0x02) { // CTRL
-    if(!(device_->ccpState() & Device::CCP_IOREG)) {
+    if(!(device_.ccpState() & Device::CCP_IOREG)) {
       v &= ~(1<<6);
     }
     ctrl_.data = v;
@@ -52,7 +52,7 @@ void PMIC::reset()
 {
   status_.data = 0;
   ctrl_.data = 0;
-  //TODO device_->schedule(ClockType::PER, std::bind(&PMIC::step, this));
+  //TODO device_.schedule(ClockType::PER, std::bind(&PMIC::step, this));
 }
 
 unsigned int PMIC::step()

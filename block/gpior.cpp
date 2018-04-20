@@ -4,7 +4,7 @@
 namespace block {
 
 
-GPIOR::GPIOR(Device* dev):
+GPIOR::GPIOR(Device& dev):
     Block(dev, "GPIOR", 0x0000)
 {
 }

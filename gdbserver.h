@@ -12,7 +12,7 @@ class Device;
 class GdbServer
 {
  public:
-  GdbServer(Device* dev);
+  GdbServer(Device& dev);
   ~GdbServer();
 
   /** @brief Run the GDB server
@@ -46,7 +46,7 @@ class GdbServer
   /// Build a 'T' stop reply
   std::string buildStopReply() const;
 
-  Device* device_;
+  Device& device_;
   int sock_client_;
   std::string rbuf_; ///< Reception buffer
 
