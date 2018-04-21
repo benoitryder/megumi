@@ -39,19 +39,19 @@ class OSC: public Block
   union CTRL {
     uint8_t data;
     BitField<0> rc2men;
-    BitField<2> rc32men;
-    BitField<3> rc32ken;
-    BitField<4> xoscen;
-    BitField<5> pllen;
+    BitField<1> rc32men;
+    BitField<2> rc32ken;
+    BitField<3> xoscen;
+    BitField<4> pllen;
   } ctrl_;
 
   union STATUS {
     uint8_t data;
     BitField<0> rc2mrdy;
-    BitField<2> rc32mrdy;
-    BitField<3> rc32krdy;
-    BitField<4> xoscrdy;
-    BitField<5> pllrdy;
+    BitField<1> rc32mrdy;
+    BitField<2> rc32krdy;
+    BitField<3> xoscrdy;
+    BitField<4> pllrdy;
   } status_;
 
   union XOSCCTRL {
