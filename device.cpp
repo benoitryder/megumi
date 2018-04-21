@@ -27,8 +27,8 @@ Device::Device(const ModelConf& model, ConfTree& conf):
     sram_data_(mem_sram_size_),
     // blocks
     cpu_(*this),
-    clk_(*this),
     osc_(*this),
+    clk_(*this, osc_),
     pmic_(*this),
     gpior_(*this)
 {

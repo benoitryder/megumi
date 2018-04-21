@@ -5,8 +5,9 @@
 namespace block {
 
 
-CLK::CLK(Device& dev):
-    Block(dev, "CLK", 0x0040)
+CLK::CLK(Device& dev, const OSC& osc):
+    Block(dev, "CLK", 0x0040),
+    osc_(osc)
 {
 }
 
@@ -35,14 +36,13 @@ uint8_t CLK::getIo(ioptr_t addr)
 void CLK::setIo(ioptr_t addr, uint8_t v)
 {
   assert(addr < IO_SIZE);
-  if(addr == 0x00 && !locked_) { //CTRL
+  if(addr == 0x00 && !locked_) { // CTRL
     SCLKSEL vsclk = static_cast<SCLKSEL>(v & 0x7);
     if(vsclk > SCLKSEL_PLL) {
       LOGF(ERROR, "invalid SCLKSEL value");
     } else if(device_.ccpState() & Device::CCP_IOREG) {
-      if(vsclk == SCLKSEL_XOSC || vsclk == SCLKSEL_XOSC) {
-        //TODO
-        LOGF(WARNING, "XOSC and PLL clock sources not supported");
+      if(vsclk == SCLKSEL_XOSC) {
+        LOGF(WARNING, "XOSC clock source not supported");
       } else {
         sclk_ = vsclk;
         updateFrequencies();
@@ -109,8 +109,16 @@ void CLK::updateFrequencies()
     case SCLKSEL_RC32K:
       f_sys_ = 32768;
       break;
-    case SCLKSEL_XOSC:
     case SCLKSEL_PLL:
+      //TODO PLL configuration cannot be modified while PLL is enabled
+      f_sys_ = osc_.getPllFrequency();
+      if(f_sys_ > 200000000) {
+        LOGF(ERROR, "PLL frequency is too high");
+      } else if(f_sys_ < 10000000) {
+        LOGF(ERROR, "PLL frequency is too low");
+      }
+      break;
+    case SCLKSEL_XOSC:
       // not reachable, check is made earlier
       throw BlockError(*this, "unsupported SCLKSEL value");
   }

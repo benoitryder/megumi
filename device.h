@@ -305,8 +305,8 @@ class Device
 
   // blocks
   block::CPU cpu_;
-  block::CLK clk_;
   block::OSC osc_;
+  block::CLK clk_;
   block::PMIC pmic_;
   block::GPIOR gpior_;
 };

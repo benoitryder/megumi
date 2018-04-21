@@ -26,6 +26,9 @@ class OSC: public Block
   void setIo(ioptr_t addr, uint8_t v) override;
   void reset() override;
 
+  /// Return resulting PLL frequency
+  unsigned int getPllFrequency() const;
+
   enum PLLSRC {
     PLLSRC_RC2M = 0,
     PLLSRC_RC32M = 2,

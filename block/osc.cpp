@@ -41,12 +41,12 @@ uint8_t OSC::getIo(ioptr_t addr)
 void OSC::setIo(ioptr_t addr, uint8_t v)
 {
   assert(addr < IO_SIZE);
-  if(addr == 0x00) { //CTRL
+  if(addr == 0x00) { // CTRL
     ctrl_.data = v & 0x1F;
     status_.data = ctrl_.data; //TODO clock sources are immediately ready
     //TODO PLL source cannot be disabled
-    //TODO since XOSC and PLL are not supported, never report them ready
-    status_.xoscrdy = status_.pllrdy = 0;
+    //TODO since XOSC is not supported, never report them ready
+    status_.xoscrdy = 0;
   } else if(addr == 0x02) { // XOSCCTRL
     xoscctrl_.data = v & 0xEF;
     //TODO value is not handled at all for now
@@ -92,6 +92,24 @@ void OSC::reset()
   xoscctrl_.data = 0;
   xoscfail_.data = 0;
   rc32kcal_ = 0x55; // random initial value
+}
+
+
+unsigned int OSC::getPllFrequency() const
+{
+  unsigned int f_base;
+  switch(pllsrc_) {
+    case PLLSRC_RC2M:
+      f_base = 2000000;
+      break;
+    case PLLSRC_RC32M:
+      f_base = 32000000/4;
+      break;
+    case PLLSRC_XOSC:
+      throw BlockError(*this, "unsupported PLLSRC value");
+  }
+
+  return f_base * pllfac_;
 }
 
 

@@ -5,6 +5,8 @@
 
 namespace block {
 
+class OSC;
+
 
 /// CLK peripheral
 class CLK: public Block
@@ -13,7 +15,7 @@ class CLK: public Block
   static const ioptr_t IO_SIZE = 8;
 
  public:
-  CLK(Device& dev);
+  CLK(Device& dev, const OSC& osc);
   virtual ~CLK();
 
   ioptr_t io_size() const override { return IO_SIZE; }
@@ -41,6 +43,7 @@ class CLK: public Block
   /// Update frequencies after configuration change
   void updateFrequencies();
 
+  const OSC& osc_;
   SCLKSEL sclk_;
 
   union PSCTRL {
