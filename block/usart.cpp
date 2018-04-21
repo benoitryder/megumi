@@ -40,12 +40,16 @@ class USARTLinkFile: public USARTLink
 {
  public:
   USARTLinkFile(const USART& usart, const std::string& path);
+  USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out);
   virtual ~USARTLinkFile();
   virtual void configure() {}
   virtual int recv();
   virtual bool send(uint16_t v);
  protected:
-  HANDLE h_;
+  void initHandles();
+
+  HANDLE h_in_;
+  HANDLE h_out_;
   struct {
     OVERLAPPED o;
     uint8_t data;
@@ -54,39 +58,87 @@ class USARTLinkFile: public USARTLink
 };
 
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
-    USARTLink(usart), state_read_{}, state_write_{}
+    USARTLink(usart),
+    h_in_(INVALID_HANDLE_VALUE),
+    h_out_(INVALID_HANDLE_VALUE),
+    state_read_{}, state_write_{}
 {
-  h_ = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
-  if(h_ == INVALID_HANDLE_VALUE) {
+  HANDLE h = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+  if(h == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": failed to open link file "+path);
   }
+  h_in_ = h_out_ = h;
+  initHandles();
+}
 
-  state_read_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
-  if(!state_read_.o.hEvent) {
-    DWORD error = GetLastError();
-    throw win32_error(error, usart_.name()+": CreateEvent() failed");
+USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out):
+    USARTLink(usart),
+    h_in_(INVALID_HANDLE_VALUE),
+    h_out_(INVALID_HANDLE_VALUE),
+    state_read_{}, state_write_{}
+{
+  if(!path_in.empty()) {
+    h_in_ = CreateFile(path_in.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+    if(h_in_ == INVALID_HANDLE_VALUE) {
+      DWORD error = GetLastError();
+      throw win32_error(error, usart_.name()+": failed to open link input file "+path_in);
+    }
   }
-  state_write_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
-  if(!state_write_.o.hEvent) {
-    DWORD error = GetLastError();
-    throw win32_error(error, usart_.name()+": CreateEvent() failed");
+
+  if(!path_out.empty()) {
+    h_out_ = CreateFile(path_out.c_str(), GENERIC_WRITE, 0, nullptr, TRUNCATE_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+    if(h_out_ == INVALID_HANDLE_VALUE) {
+      DWORD error = GetLastError();
+      throw win32_error(error, usart_.name()+": failed to open link output file "+path_out);
+    }
+  }
+
+  initHandles();
+}
+
+void USARTLinkFile::initHandles()
+{
+  if(h_in_ != INVALID_HANDLE_VALUE) {
+    state_read_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
+    if(!state_read_.o.hEvent) {
+      DWORD error = GetLastError();
+      throw win32_error(error, usart_.name()+": CreateEvent() failed");
+    }
+  }
+  if(h_out_ != INVALID_HANDLE_VALUE) {
+    state_write_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
+    if(!state_write_.o.hEvent) {
+      DWORD error = GetLastError();
+      throw win32_error(error, usart_.name()+": CreateEvent() failed");
+    }
   }
 }
 
 USARTLinkFile::~USARTLinkFile()
 {
-  CancelIo(h_);
-  CloseHandle(state_read_.o.hEvent);
-  CloseHandle(state_write_.o.hEvent);
-  CloseHandle(h_);
+  if(h_in_ != INVALID_HANDLE_VALUE) {
+    CancelIo(h_in_);
+    CloseHandle(h_in_);
+    CloseHandle(state_read_.o.hEvent);
+  }
+  if(h_out_ != INVALID_HANDLE_VALUE) {
+    if(h_in_ != h_out_) {
+      CancelIo(h_out_);
+      CloseHandle(h_out_);
+    }
+    CloseHandle(state_write_.o.hEvent);
+  }
 }
 
 int USARTLinkFile::recv()
 {
+  if(h_in_ == INVALID_HANDLE_VALUE) {
+    return -1;
+  }
   if(!state_read_.waiting) {
     ResetEvent(state_read_.o.hEvent);
-    if(!ReadFile(h_, &state_read_.data, 1, nullptr, &state_read_.o)) {
+    if(!ReadFile(h_in_, &state_read_.data, 1, nullptr, &state_read_.o)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": read error");
@@ -98,7 +150,7 @@ int USARTLinkFile::recv()
     }
   } else {
     DWORD dummy;
-    if(!GetOverlappedResult(h_, &state_read_.o, &dummy, false)) {
+    if(!GetOverlappedResult(h_in_, &state_read_.o, &dummy, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw win32_error(error, usart_.name()+": read error");
@@ -113,10 +165,13 @@ int USARTLinkFile::recv()
 
 bool USARTLinkFile::send(uint16_t v)
 {
+  if(h_out_ == INVALID_HANDLE_VALUE) {
+    return true;
+  }
   if(!state_write_.waiting) {
     ResetEvent(state_write_.o.hEvent);
     state_write_.data = v;
-    if(!WriteFile(h_, &state_write_.data, 1, nullptr, &state_write_.o)) {
+    if(!WriteFile(h_out_, &state_write_.data, 1, nullptr, &state_write_.o)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": write error");
@@ -128,7 +183,7 @@ bool USARTLinkFile::send(uint16_t v)
     }
   } else {
     DWORD dummy;
-    if(!GetOverlappedResult(h_, &state_write_.o, &dummy, false)) {
+    if(!GetOverlappedResult(h_out_, &state_write_.o, &dummy, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw win32_error(error, usart_.name()+": write error");
@@ -154,7 +209,7 @@ class USARTLinkSerial: public USARTLinkFile
 void USARTLinkSerial::configure()
 {
   DCB dcb = {0};
-  if(!GetCommState(h_, &dcb)) {
+  if(!GetCommState(h_in_, &dcb)) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": GetCommState() failed");
   }
@@ -176,7 +231,7 @@ void USARTLinkSerial::configure()
       break;
   }
   dcb.StopBits = usart_.stopbits() == 1 ? ONESTOPBIT : TWOSTOPBITS;
-  if(!SetCommState(h_, &dcb)) {
+  if(!SetCommState(h_in_, &dcb)) {
     DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": SetCommState() failed");
   }
@@ -190,32 +245,60 @@ class USARTLinkFile: public USARTLink
 {
  public:
   USARTLinkFile(const USART& usart, const std::string& path);
+  USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out);
   virtual ~USARTLinkFile();
   virtual void configure() {}
   virtual int recv();
   virtual bool send(uint16_t v);
  protected:
-  int fd_;
+  int fd_in_;
+  int fd_out_;
 };
 
 USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
-    USARTLink(usart)
+    USARTLink(usart), fd_in_(0), fd_out_(0)
 {
-  fd_ = ::open(path.c_str(), O_RDWR|O_NOCTTY|O_NONBLOCK);
-  if(fd_ < 0) {
+  int fd = ::open(path.c_str(), O_RDWR|O_NOCTTY|O_NONBLOCK);
+  if(fd < 0) {
     throw std::runtime_error("failed to open USART link file: "+path);
+  }
+  fd_in_ = fd_out_ = fd;
+}
+
+USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out):
+    USARTLink(usart), fd_in_(0), fd_out_(0)
+{
+  if(!path_in.empty()) {
+    fd_in_ = ::open(path_in.c_str(), O_RDONLY|O_NOCTTY|O_NONBLOCK);
+    if(fd_in_ < 0) {
+      throw std::runtime_error("failed to open USART link input file: "+path_in);
+    }
+  }
+  if(!path_out.empty()) {
+    fd_out_ = ::open(path_out.c_str(), O_WRONLY|O_TRUNC|O_CREAT|O_NOCTTY|O_NONBLOCK, 0644);
+    if(fd_out_ < 0) {
+      throw std::runtime_error("failed to open USART link output file: "+path_out);
+    }
   }
 }
 
 USARTLinkFile::~USARTLinkFile()
 {
-  ::close(fd_);
+  if(fd_in_) {
+    ::close(fd_in_);
+  }
+  if(fd_out_ && fd_out_ != fd_in_) {
+    ::close(fd_out_);
+  }
 }
 
 int USARTLinkFile::recv()
 {
+  if(!fd_in_) {
+    return -1;
+  }
   uint8_t c;
-  ssize_t n = ::read(fd_, &c, 1);
+  ssize_t n = ::read(fd_in_, &c, 1);
   if(n == 1) {
     return c;
   } else if(n == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -227,8 +310,11 @@ int USARTLinkFile::recv()
 
 bool USARTLinkFile::send(uint16_t v)
 {
+  if(!fd_out_) {
+    return true;
+  }
   uint8_t v8 = v; // keep only 8 bits
-  ssize_t n = ::write(fd_, &v8, 1);
+  ssize_t n = ::write(fd_out_, &v8, 1);
   if(n == 1) {
     return true;
   } else if(n == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -251,11 +337,11 @@ USARTLinkSerial::USARTLinkSerial(const USART& usart, const std::string& path):
   USARTLinkFile(usart, path)
 {
   if(path == "/dev/ptmx") {
-    LOGF(INFO, "%s ptsname: %s") % usart_.name() % ::ptsname(fd_);
-    if(::grantpt(fd_)) {
+    LOGF(INFO, "%s ptsname: %s") % usart_.name() % ::ptsname(fd_in_);
+    if(::grantpt(fd_in_)) {
       throw std::runtime_error("granpt() failed");
     }
-    if(::unlockpt(fd_)) {
+    if(::unlockpt(fd_in_)) {
       throw std::runtime_error("unlockpt() failed");
     }
   }
@@ -264,7 +350,7 @@ USARTLinkSerial::USARTLinkSerial(const USART& usart, const std::string& path):
 void USARTLinkSerial::configure()
 {
   struct termios tos;
-  if(::tcgetattr(fd_, &tos)) {
+  if(::tcgetattr(fd_in_, &tos)) {
     throw std::runtime_error("tcgetattr() failed");
   }
   tos.c_iflag &= ~(INPCK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
@@ -353,7 +439,7 @@ void USARTLinkSerial::configure()
   tos.c_cc[VMIN] = 1;
   tos.c_cc[VTIME] = 0;
 
-  if(::tcsetattr(fd_, TCSANOW, &tos)) {
+  if(::tcsetattr(fd_in_, TCSANOW, &tos)) {
     throw std::runtime_error("tcsetattr() failed");
   }
 }
@@ -369,37 +455,32 @@ USART::USART(Device& dev, const Instance<USART>& instance):
     Block(dev, instance.name, instance.io_addr, instance.iv_base)
 {
   const ConfTree& conf = this->conf();
-  std::string link_path = conf.get<std::string>("link_path", "");
-  if(!link_path.empty()) {
-    std::string link_type = conf.get<std::string>("link_type", "");
-    if(link_type.empty()) {
-#define STARTSWITH(s,prefix)  (!(s).compare(0, sizeof(prefix)-1, prefix))
-#if __WIN32
-      if(STARTSWITH(link_path, "COM") || STARTSWITH(link_path, R"(\\.\COM)"))
-#else
-      if(link_path == "/dev/ptmx" || STARTSWITH(link_path, "/dev/tty"))
-#endif
-#undef STARTSWITH
-      {
-        link_type = "serial";
-      } else {
-        link_type = "file";
-      }
-    }
-    if(link_type == "serial") {
+  std::string link_type = conf.get<std::string>("link_type", "");
+  if(link_type.empty()) {
+    link_ = std::make_unique<USARTLinkDummy>(*this);
+  } else if(link_type == "serial") {
+    std::string link_path = conf.get<std::string>("link_path", "");
 #ifdef __WIN32
-      if(link_path.find_first_of("\\/") == std::string::npos) {
-        link_path = "\\\\.\\" + link_path;
-      }
+    if(link_path.find_first_of("\\/") == std::string::npos) {
+      link_path = "\\\\.\\" + link_path;
+    }
 #endif
-      link_ = std::make_unique<USARTLinkSerial>(*this, link_path);
-    } else if(link_type == "file") {
+    link_ = std::make_unique<USARTLinkSerial>(*this, link_path);
+  } else if(link_type == "file") {
+    std::string link_path = conf.get<std::string>("link_path", "");
+    std::string link_in = conf.get<std::string>("link_in", "");
+    std::string link_out = conf.get<std::string>("link_out", "");
+    if(link_path.empty() && link_in.empty() && link_out.empty()) {
+      throw std::runtime_error(name() + ": missing link_path or link_in or link_out");
+    } else if(!link_path.empty() && !(link_in.empty() && link_out.empty())) {
+      throw std::runtime_error(name() + ": link_path and link_in/link_out are mutually exclusive");
+    } else if(!link_path.empty()) {
       link_ = std::make_unique<USARTLinkFile>(*this, link_path);
     } else {
-      throw std::runtime_error(name() + ": invalid link_type value");
+      link_ = std::make_unique<USARTLinkFile>(*this, link_in, link_out);
     }
   } else {
-    link_ = std::make_unique<USARTLinkDummy>(*this);
+    throw std::runtime_error(name() + ": invalid link_type value");
   }
 }
 
