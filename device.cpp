@@ -1546,7 +1546,8 @@ void Device::connectBlock(Block* block)
 
 void Device::setSP(uint16_t sp)
 {
-  if(sp >= dataMemSize()) {
+  if(sp >= mem_sram_start_ + mem_sram_start_) {
+    //XXX exsram should be allowed
     LOGF(ERROR, "invalid SP value (overflow): 0x%02X") % sp;
   } else {
     cpu_.sp_ = sp;
@@ -1573,6 +1574,8 @@ uint8_t Device::getDataMem(memptr_t addr)
     return 0; //TODO
   } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
     return sram_data_[addr-mem_sram_start_];
+  } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
+    return Device::getEmulatorMem(addr);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
     LOG(WARNING) << "external SRAM read access not supported";
     return 0; //TODO
@@ -1590,6 +1593,8 @@ void Device::setDataMem(memptr_t addr, uint8_t v)
     LOG(WARNING) << "EEPROM write access not supported";
   } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
     sram_data_[addr-mem_sram_start_] = v;
+  } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
+    Device::setEmulatorMem(addr, v);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
     LOG(WARNING) << "external SRAM write access not supported";
   } else {
@@ -1615,6 +1620,26 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
     return;
   }
   block->setIo(addr - block->io_addr(), v);
+}
+
+uint8_t Device::getEmulatorMem(memptr_t addr)
+{
+  uint16_t offset = addr - mem_emulator_start_;
+  switch(offset) {
+    case 0x00: // clk_sys_tick_
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      return (clk_sys_tick_ >> ((offset - 0x00) * 8)) & 0xff;
+    default:
+      LOGF(WARNING, "emulator memory ready 0x%06X: reserved address") % addr;
+      return 0;
+  }
+}
+
+void Device::setEmulatorMem(memptr_t addr, uint8_t)
+{
+  LOGF(ERROR, "emulator memory write 0x%06X: not writable") % addr;
 }
 
 

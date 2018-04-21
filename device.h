@@ -144,8 +144,6 @@ class Device
   const std::vector<uint16_t>& flash_data() const { return flash_data_; }
   std::vector<uint16_t>& flash_data() { return flash_data_; }
 
-  /// Return data memory size
-  memptr_t dataMemSize() const { return mem_exsram_start_ + mem_exsram_size_; }
   /// Read data memory value
   uint8_t getDataMem(memptr_t addr);
   /// Write data memory value
@@ -155,6 +153,11 @@ class Device
   uint8_t getIoMem(ioptr_t addr);
   /// Write I/O memory value
   void setIoMem(ioptr_t addr, uint8_t v);
+
+  /// Read internal emulator value
+  uint8_t getEmulatorMem(memptr_t addr);
+  /// Write internal emulator value
+  void setEmulatorMem(memptr_t addr, uint8_t v);
 
   /** @brief Schedule a clock event
    *
@@ -216,6 +219,9 @@ class Device
   const memptr_t mem_sram_size_;
   const memptr_t mem_exsram_start_;
   const memptr_t mem_exsram_size_; // 0 if no external SRAM
+  // For now, no XMEGA device has SRAM in this range
+  const memptr_t mem_emulator_start_ = 0xFF00;
+  const memptr_t mem_emulator_size_ = 0x100;
 
   ConfTree& conf_;
 
