@@ -14,7 +14,6 @@ LIB_OBJS = $(LIB_SRCS:.cpp=.o)
 
 ifeq ($(OS),Windows_NT)
 LDFLAGS += -lws2_32
-LDFLAGS += -static-libgcc -static-libstdc++
 EXE_LDFLAGS += -Wl,--enable-auto-import
 LIB_LDFLAGS += -Wl,--out-implib,$(TARGET_LIB).a -Wl,--export-all-symbols
 LIB_EXT = .dll

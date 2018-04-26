@@ -5,20 +5,6 @@
 #include <string.h>
 #include "log.h"
 
-#if defined __WIN32
-#ifndef localtime_r
-static struct ::tm* localtime_r(const time_t* timep, struct ::tm* tm)
-{
-  struct ::tm* tmp = ::localtime(timep);
-  memset(tm, 0, sizeof(*tm));
-  if(tmp) {
-    *tm = *tmp;
-  }
-  return tmp;
-}
-#endif
-#endif
-
 
 namespace Log {
 
