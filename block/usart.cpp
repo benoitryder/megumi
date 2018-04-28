@@ -87,7 +87,7 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, con
   }
 
   if(!path_out.empty()) {
-    h_out_ = CreateFile(path_out.c_str(), GENERIC_WRITE, 0, nullptr, TRUNCATE_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+    h_out_ = CreateFile(path_out.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED, nullptr);
     if(h_out_ == INVALID_HANDLE_VALUE) {
       DWORD error = GetLastError();
       throw win32_error(error, usart_.name()+": failed to open link output file "+path_out);
@@ -100,6 +100,8 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, con
 void USARTLinkFile::initHandles()
 {
   if(h_in_ != INVALID_HANDLE_VALUE) {
+    state_read_.o.Offset = 0;
+    state_read_.o.OffsetHigh = 0;
     state_read_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
     if(!state_read_.o.hEvent) {
       DWORD error = GetLastError();
@@ -107,6 +109,8 @@ void USARTLinkFile::initHandles()
     }
   }
   if(h_out_ != INVALID_HANDLE_VALUE) {
+    state_write_.o.Offset = 0xFFFFFFFF;
+    state_write_.o.OffsetHigh = 0xFFFFFFFF;
     state_write_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
     if(!state_write_.o.hEvent) {
       DWORD error = GetLastError();
@@ -149,14 +153,15 @@ int USARTLinkFile::recv()
       return state_read_.data;
     }
   } else {
-    DWORD dummy;
-    if(!GetOverlappedResult(h_in_, &state_read_.o, &dummy, false)) {
+    DWORD count;
+    if(!GetOverlappedResult(h_in_, &state_read_.o, &count, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw win32_error(error, usart_.name()+": read error");
       }
       return -1;
     } else {
+      state_read_.o.Offset += count;
       state_read_.waiting = false;
       return state_read_.data;
     }
@@ -182,7 +187,7 @@ bool USARTLinkFile::send(uint16_t v)
       return true;
     }
   } else {
-    DWORD dummy;
+    DWORD dummy = 0;
     if(!GetOverlappedResult(h_out_, &state_write_.o, &dummy, false)) {
       DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
