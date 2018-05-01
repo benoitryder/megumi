@@ -28,7 +28,7 @@ uint8_t CLK::getIo(ioptr_t addr)
   } else if(addr == 0x03) { // RTCCTRL
     return (rtcen_ & 1) | (rtcsrc_ << 1);
   } else {
-    DLOGF(WARNING, "I/O read %s + 0x%02X: reserved address") % name() % addr;
+    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
     return 0;
   }
 }
@@ -81,7 +81,7 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
       LOGF(ERROR, "invalid RTCSRC value");
     }
   } else {
-    LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
+    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
   }
 }
 

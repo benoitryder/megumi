@@ -119,7 +119,7 @@ uint8_t TC::getIo(ioptr_t addr)
   } else if(addr == 0x3F) { // CCDBUFH
     return temp_;
   } else {
-    DLOGF(WARNING, "I/O read %s + 0x%02X: reserved address") % name() % addr;
+    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
     return 0;
   }
 }
@@ -274,7 +274,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
     ccdbuf_ = temp_ | (v << 8);
     ctrlg_.ccdbv = 1;
   } else {
-    LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
+    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
   }
 }
 
@@ -329,7 +329,8 @@ unsigned int TC::step()
   uint8_t wgmode = ctrlb_.wgmode;
   uint8_t top = ctrlb_.wgmode == WGMODE_FRQ ? cca_ : per_;
   bool trigger_ovf = false;
-  DLOGF(NOTICE, "[%lu] %s: CNT = %u, DIR = %d, WGMODE = %d, PER = %u, CCA = %u") % device_.clk_sys_tick() % name() % cnt_ % (int)ctrlf_.dir % (int)wgmode % per_ % cca_;
+  DLOGF(NOTICE, "[{}] {}: CNT = {}, DIR = {}, WGMODE = {}, PER = {}, CCA = {}",
+        device_.clk_sys_tick(), name(), cnt_, ctrlf_.dir, wgmode, per_, cca_);
   //TODO handle minimum resolution (PER=3 for slopes)
 
   if(ctrlf_.dir) {

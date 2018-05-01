@@ -3,8 +3,9 @@ CPPFLAGS += -g -Wall -Wextra -Werror
 # sadly, it does warn about designated initializers
 # (despite what is stated in docs)
 CPPFLAGS += -Wno-missing-field-initializers
+CPPFLAGS += -DFMT_HEADER_ONLY
 CXXFLAGS += -std=c++14 -O3 -flto -fPIC
-LDFLAGS += -lboost_program_options$(BOOST_SUFFIX) -flto
+LDFLAGS += -lboost_program_options$(BOOST_SUFFIX) -lfmt
 
 NAME = megumi
 SRCS = $(wildcard $(addsuffix /*.cpp,. model block))

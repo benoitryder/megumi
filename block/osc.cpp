@@ -33,7 +33,7 @@ uint8_t OSC::getIo(ioptr_t addr)
   } else if(addr == 0x06) { // DFLLCTRL
     return dfllctrl_.data;
   } else {
-    DLOGF(WARNING, "I/O read %s + 0x%02X: reserved address") % name() % addr;
+    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
     return 0;
   }
 }
@@ -80,7 +80,7 @@ void OSC::setIo(ioptr_t addr, uint8_t v)
     //TODO no check nor handling is made here
     dfllctrl_.data = v & 0x03;
   } else {
-    LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
+    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
   }
 }
 

@@ -342,7 +342,7 @@ USARTLinkSerial::USARTLinkSerial(const USART& usart, const std::string& path):
   USARTLinkFile(usart, path)
 {
   if(path == "/dev/ptmx") {
-    LOGF(INFO, "%s ptsname: %s") % usart_.name() % ::ptsname(fd_in_);
+    LOGF(INFO, "{} ptsname: {}", usart_.name(), ::ptsname(fd_in_));
     if(::grantpt(fd_in_)) {
       throw std::runtime_error("granpt() failed");
     }
@@ -514,7 +514,7 @@ uint8_t USART::getIo(ioptr_t addr)
   } else if(addr == 0x07) { // BAUDCTRLB
     return ((baudrate_ >> 4) & 0xF0) | (baudscale_ & 0xF);
   } else {
-    DLOGF(WARNING, "I/O read %s + 0x%02X: reserved address") % name() % addr;
+    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
     return 0;
   }
 }
@@ -593,7 +593,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     baudscale_ = scale;
     configure();
   } else {
-    LOGF(ERROR, "I/O write %s + 0x%02X: not writable") % name() % addr;
+    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
   }
 }
 
@@ -637,7 +637,7 @@ unsigned int USART::step()
       if(status_.rxcif) {
         status_.bufofv = 1;
       } else {
-        DLOGF(INFO, "%s received %02X") % name() % v;
+        DLOGF(INFO, "{} received {:02X}", name(), v);
         rxb_ = v;
         status_.rxb8 = v & 0x100;
         status_.rxcif = 1;
@@ -650,7 +650,7 @@ unsigned int USART::step()
       uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
       if(link_->send(v)) {
         next_send_tick_ = sys_tick + frame_sys_ticks_ * device_.getClockScale(ClockType::PER);
-        DLOGF(INFO, "%s send %02X") % name() % v;
+        DLOGF(INFO, "{} send {:02X}", name(), v);
         //TODO TXC and DRE should not be triggered simultaneously
         status_.dreif = 1;
         status_.txcif = 1;
@@ -677,7 +677,7 @@ void USART::configure()
   //TODO only supports "ctrlc_.cmod == 0" (asynchronous mode)
   // for SPI, computed values are different
   if(databits() > 8) {
-    LOGF(WARNING, "%s: 9-bit character mode is not fully supported") % name();
+    LOGF(WARNING, "{}: 9-bit character mode is not fully supported", name());
   }
 
   // number of bits per frame
@@ -689,7 +689,7 @@ void USART::configure()
   frame_sys_ticks_ = frame_bits * bit_ticks;
   link_->configure();
 
-  DLOGF(NOTICE, "%s reconfigured: %u bauds") % name() % baudrate();
+  DLOGF(NOTICE, "{} reconfigured: {} bauds", name(), baudrate());
 }
 
 

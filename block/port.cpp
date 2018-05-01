@@ -31,7 +31,7 @@ uint8_t Port::getIo(ioptr_t addr)
       return out_;
     case 0x08: // IN
       //TODO bit value for pin "out"
-      LOGF(WARNING, "I/O read %s + 0x%02X: not implemented") % name() % addr;
+      LOGF(WARNING, "I/O read {} + 0x{:02X}: not implemented", name(), addr);
       return (out_ & dir_) | (/*TODO*/0 & ~dir_);
     case 0x09: // INTCTRL
     case 0x0A: // INT0MASK
@@ -46,10 +46,10 @@ uint8_t Port::getIo(ioptr_t addr)
     case 0x16:
     case 0x17:
       //TODO not implemented yet
-      LOGF(WARNING, "I/O read %s + 0x%02X: not implemented") % name() % addr;
+      LOGF(WARNING, "I/O read {} + 0x{:02X}: not implemented", name(), addr);
       return 0;
     default:
-      DLOGF(WARNING, "I/O read %s + 0x%02X: reserved address") % name() % addr;
+      DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
       return 0; //TODO warning
   }
 }
@@ -84,7 +84,7 @@ void Port::setIo(ioptr_t addr, uint8_t v)
       return;
     case 0x08: // IN
       //TODO ??
-      LOGF(WARNING, "I/O write %s + 0x%02X: not implemented") % name() % addr;
+      LOGF(WARNING, "I/O write {} + 0x{:02X}: not implemented", name(), addr);
       return;
     case 0x09: // INTCTRL
     case 0x0A: // INT0MASK
@@ -99,10 +99,10 @@ void Port::setIo(ioptr_t addr, uint8_t v)
     case 0x16:
     case 0x17:
       //TODO not implemented yet
-      LOGF(WARNING, "I/O write %s + 0x%02X: not implemented") % name() % addr;
+      LOGF(WARNING, "I/O write {} + 0x{:02X}: not implemented", name(), addr);
       return;
     default:
-      DLOGF(WARNING, "I/O write %s + 0x%02X: not writable") % name() % addr;
+      DLOGF(WARNING, "I/O write {} + 0x{:02X}: not writable", name(), addr);
       return;
   }
 }

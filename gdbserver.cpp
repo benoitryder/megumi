@@ -163,7 +163,7 @@ void GdbServer::run(int port)
     ::close(sock_server);
     throw GdbServerError(errno, "failed to listen on server socket");
   }
-  LOGF(NOTICE, "GDB server: listening on port %d") % port;
+  LOGF(NOTICE, "GDB server: listening on port {}", port);
 
   sock_client_ = ::accept(sock_server, NULL, NULL);
   if(sock_client_ < 0) {
@@ -220,7 +220,7 @@ void GdbServer::processPacket(const std::string& data)
   }
 
   //TODO some commands silently fails (eg. SP overflow)
-  DLOGF(INFO, "GDB server: received command: %s") % data;
+  DLOGF(INFO, "GDB server: received command: {}", data);
 
   std::string reply;
   try {
@@ -233,7 +233,7 @@ void GdbServer::processPacket(const std::string& data)
         } else if(subcmd == "C") {
           build_hex_be(&reply, 1); // only use thread 1
         } else {
-          DLOGF(INFO, "GDB server: unhandled query: %s") % subcmd;
+          DLOGF(INFO, "GDB server: unhandled query: {}", subcmd);
         }
       } break;
 
@@ -432,11 +432,11 @@ void GdbServer::processPacket(const std::string& data)
       } break;
 
       default:
-        DLOGF(INFO, "GDB server: unhandled packet: %c") % data[0];
+        DLOGF(INFO, "GDB server: unhandled packet: {}", data[0]);
         // not handled, empty reply
     }
   } catch(const GdbServerError& e) {
-    DLOGF(ERROR, "GDB server: error for command '%c': %s") % data[0] % e.what();
+    DLOGF(ERROR, "GDB server: error for command '{}': {}", data[0], e.what());
     reply = "E00";
   }
 
@@ -504,7 +504,7 @@ std::string GdbServer::recvPacket()
 
 void GdbServer::sendPacket(const std::string& data)
 {
-  DLOGF(INFO, "GDB server: send packet: %s") % data;
+  DLOGF(INFO, "GDB server: send packet: {}", data);
   const size_t data_size = data.size();
 
   // compute checksum
