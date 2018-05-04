@@ -3,8 +3,8 @@ CPPFLAGS += -g -Wall -Wextra -Werror
 # sadly, it does warn about designated initializers
 # (despite what is stated in docs)
 CPPFLAGS += -Wno-missing-field-initializers
-CPPFLAGS += -DFMT_HEADER_ONLY
-CXXFLAGS += -std=c++14 -O3 -flto -fPIC
+#CPPFLAGS += -DSPDLOG_FMT_EXTERNAL
+CXXFLAGS += -std=c++17 -O3 -flto -fPIC
 LDFLAGS += -lboost_program_options$(BOOST_SUFFIX) -lfmt
 
 NAME = megumi

@@ -119,7 +119,7 @@ uint8_t TC::getIo(ioptr_t addr)
   } else if(addr == 0x3F) { // CCDBUFH
     return temp_;
   } else {
-    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: reserved address", addr);
     return 0;
   }
 }
@@ -130,7 +130,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
   if(addr == 0x00) { // CTRLA
     if(v & 0x08) {
       //TODO
-      LOGF(WARNING, "event channel source not supported");
+      logger_->warn("event channel source not supported");
     } else {
       const unsigned int prescalers[8] = { 0, 1, 2, 4, 8, 64, 256, 1024 };
       prescaler_ = prescalers[v];
@@ -146,13 +146,13 @@ void TC::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x01) { // CTRLB
     if(v & 0xF0) {
       //TODO
-      LOGF(WARNING, "CCxEN bits not supported");
+      logger_->warn("CCxEN bits not supported");
       v &= 0x0F;
     }
     //TODO
     ctrlb_.data = v & 0xF7;
     if(ctrlb_.wgmode == 2 || ctrlb_.wgmode == 4) {
-      LOGF(ERROR, "invalid WGMODE value");
+      logger_->error("invalid WGMODE value");
       ctrlb_.wgmode = 0;
     }
   } else if(addr == 0x02) { // CTRLC
@@ -161,7 +161,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x03) { // CTRLD
     //TODO
     if(v != 0) {
-      LOGF(WARNING, "event actions not supported");
+      logger_->warn("event actions not supported");
     }
   } else if(addr == 0x04) { // CTRLE
     //TODO
@@ -170,12 +170,12 @@ void TC::setIo(ioptr_t addr, uint8_t v)
       // normal mode
     } else if(vbytem == 1) {
       //TODO
-      LOGF(WARNING, "BYTEMODE not supported");
+      logger_->warn("BYTEMODE not supported");
     } else if(vbytem == 2) {
       //TODO
-      LOGF(WARNING, "SPLITMODE not supported");
+      logger_->warn("SPLITMODE not supported");
     } else {
-      LOGF(ERROR, "invalid BYTEM value");
+      logger_->error("invalid BYTEM value");
     }
   } else if(addr == 0x06) { // INTCTRLA
     ovf_intlvl_ = static_cast<IntLvl>(v & 0x3);
@@ -274,7 +274,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
     ccdbuf_ = temp_ | (v << 8);
     ctrlg_.ccdbv = 1;
   } else {
-    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
+    logger_->error("I/O write 0x{:02X}: not writable", addr);
   }
 }
 
@@ -329,8 +329,8 @@ unsigned int TC::step()
   uint8_t wgmode = ctrlb_.wgmode;
   uint8_t top = ctrlb_.wgmode == WGMODE_FRQ ? cca_ : per_;
   bool trigger_ovf = false;
-  DLOGF(NOTICE, "[{}] {}: CNT = {}, DIR = {}, WGMODE = {}, PER = {}, CCA = {}",
-        device_.clk_sys_tick(), name(), cnt_, ctrlf_.dir, wgmode, per_, cca_);
+  SPDLOG_DEBUG(logger_, "[{}] CNT = {}, DIR = {}, WGMODE = {}, PER = {}, CCA = {}",
+               device_.clk_sys_tick(), cnt_, ctrlf_.dir, wgmode, per_, cca_);
   //TODO handle minimum resolution (PER=3 for slopes)
 
   if(ctrlf_.dir) {
@@ -448,7 +448,7 @@ void TC::restartCommand()
 void TC::resetCommand()
 {
   if(!off()) {
-    LOGF(WARNING, "RESET command triggered but TC is not OFF");
+    logger_->warn("RESET command triggered but TC is not OFF");
     return;
   }
 

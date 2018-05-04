@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
         ("gdb-server,g", po::value<int>()->implicit_value(2345), "run a gdbserver on given port")
         ("sys-ticks", po::value<unsigned int>(), "stop after given number of ticks")
         ("conf-file,f", po::value<std::string>(), "configuration file")
+        ("log,l", po::value<std::vector<std::string>>()->composing(), "log configuration: [name=]level");
         ;
 
     po::options_description opts_hidden; // hidden
@@ -64,14 +65,28 @@ int main(int argc, char* argv[])
       pt::ini_parser::read_ini(fname, ptconf);
     }
 
-    Log::setMinimumSeverity(Log::INFO);
-    LOG(NOTICE) << "logging start";
+    // setup logs
+    {
+      Log::Setup log_setup;
+      //TODO allow to configure logs from config file
+      log_setup.addDefaultSink(Log::Setup::createDefaultSink());
+      if(vm.count("log")) {
+        for(auto& s : vm["log"].as<std::vector<std::string>>()) {
+          log_setup.configure(s);
+        }
+      }
+      log_setup.finalize();
+      Log::StaticLogger::finalize();
+    }
+
+    auto logger = Log::getDefaultLogger();
+    logger->info("logging start");
 
     model::ATxmega128A1 device(ptconf);
-    DLOG(NOTICE) << "device created";
+    logger->info("device created");
     std::vector<uint8_t> progdata = parse_hex_file(vm["input-file"].as<std::string>());
     device.loadFlash(progdata);
-    DLOG(NOTICE) << "flash data loaded";
+    logger->info("flash data loaded");
     device.reset();
 
     if(vm.count("gdb-server")) {

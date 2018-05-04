@@ -1,75 +1,85 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <sstream>
-#include <fmt/format.h>
+#include <vector>
+#include <map>
+#include <string>
+#include <spdlog/spdlog.h>
 #undef ERROR
 
+/** @brief Logging elements
+ *
+ * @note Since spdlog is header-only, each executable or library will
+ * instantiate and use its own "global" registry.
+ * Therefore, one must not use spdlog registry directly to configure or use
+ * project's logging.
+ */
 namespace Log {
 
-/// Log severities
-enum Severity {
-  INFO = 0,
-  NOTICE,
-  WARNING,
-  ERROR,
-};
+/// Return a registered logger, initialize one based on default if needed
+std::shared_ptr<spdlog::logger> getLogger(std::string const& name);
+/// Return default logger
+std::shared_ptr<spdlog::logger> getDefaultLogger();
 
 
-/// Set minimum report level (not thread-safe)
-void setMinimumSeverity(Severity severity);
-
-
-/// Message logger
-class Message
+/** @brief Helper to register static loggers, defined at module level
+ *
+ * To use a static logger:
+ *  - define a StaticLogger variable
+ *  - create and configure the loggers (typically, from main())
+ *  - call StaticLogger::finalize() to set the StaticLogger pointers
+ */
+class StaticLogger
 {
  public:
-  Message(Severity severity);
-  ~Message();
+  StaticLogger(const char* name);
 
-  std::ostringstream& stream() { return stream_; }
+  spdlog::logger* operator->() { return logger_.get(); }
 
-  /// Write message to destination
-  void flush();
+  /** @brief Finalize static loggers
+   *
+   * This method must be called after loggers have been setup and
+   * before they are used.
+   *
+   * Static loggers alreadey initialized are finalized. Static loggers
+   * initialized afterwards will be finalized immediately on creation.
+   */
+  static void finalize();
+
+ protected:
+  /// Setup a single static logger
+  void setup();
 
  private:
-  Severity severity_;
-  std::ostringstream stream_;
+  static inline bool finalized_ = false;
+  std::shared_ptr<spdlog::logger> logger_;
+  const char* name_;
 };
 
-
-// For DLOG implementation in NDEBUG mode
-struct VoidMessage
+/// Setup loggers
+class Setup
 {
-  VoidMessage() {}
-  template <typename T> void operator&(const T&) const {}
+ public:
+  void setDefaultLevel(spdlog::level::level_enum level) { default_level_ = level; }
+  void addDefaultSink(spdlog::sink_ptr sink) { default_sinks_.push_back(sink); }
+  void setLevel(std::string name, spdlog::level::level_enum level) { levels_[name] = level; }
+  /// Configure logger using an option string (`[logger=]level`)
+  void configure(std::string s);
+  /// Finalize configuration, create the loggers and set levels
+  void finalize();
+
+  static spdlog::level::level_enum stringToLevel(std::string s);
+
+  /// Create and return a default sink
+  static spdlog::sink_ptr createDefaultSink();
+
+ private:
+  std::vector<spdlog::sink_ptr> default_sinks_;
+  spdlog::level::level_enum default_level_ = spdlog::level::info;
+  std::map<std::string, spdlog::level::level_enum> levels_;
 };
 
 }
 
-
-// Main log macro
-#define LOG(severity) \
-    ::Log::Message(::Log::Severity::severity).stream()
-// Use boost::format formatting
-#define LOGF(severity, f, ...)  LOG(severity) << fmt::format(f, ## __VA_ARGS__)
-
-// Log message if condition is not fullfilled
-#define CHECK(severity, cond)  (cond) ? (void)0 : ::Log::VoidMessage() & LOG(severity)
-#define CHECKF(severity, cond, f, ...)  (cond) ? (void)0 : ::Log::VoidMessage() & LOGF(severity, f, ## __VA_ARGS__)
-
-
-// Debug message
-#ifndef NDEBUG
-#define DLOG(severity)  LOG(severity)
-#define DLOGF(severity, f, ...)  LOGF(severity, f, ## __VA_ARGS__)
-#define DCHECK(severity, cond)  CHECK(severity, cond)
-#define DCHECKF(severity, cond, f, ...)  CHECKF(severity, conf, f, ## __VA_ARGS__)
-#else
-#define DLOG(severity)  true ? (void)0 : ::Log::VoidMessage() & LOG(severity)
-#define DLOGF(severity, f, ...)  true ? (void)0 : ::Log::VoidMessage() & LOGF(severity, f, ## __VA_ARGS__)
-#define DCHECK(severity, cond)  DLOG(severity)
-#define DCHECKF(severity, cond, f, ...)  DLOGF(severity, f, ## __VA_ARGS__)
-#endif
 
 #endif

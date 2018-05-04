@@ -28,7 +28,7 @@ uint8_t CLK::getIo(ioptr_t addr)
   } else if(addr == 0x03) { // RTCCTRL
     return (rtcen_ & 1) | (rtcsrc_ << 1);
   } else {
-    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: reserved address", addr);
     return 0;
   }
 }
@@ -39,10 +39,10 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
   if(addr == 0x00 && !locked_) { // CTRL
     SCLKSEL vsclk = static_cast<SCLKSEL>(v & 0x7);
     if(vsclk > SCLKSEL_PLL) {
-      LOGF(ERROR, "invalid SCLKSEL value");
+      logger_->error("invalid SCLKSEL value");
     } else if(device_.ccpState() & Device::CCP_IOREG) {
       if(vsclk == SCLKSEL_XOSC) {
-        LOGF(WARNING, "XOSC clock source not supported");
+        logger_->warn("XOSC clock source not supported");
       } else {
         sclk_ = vsclk;
         updateFrequencies();
@@ -50,13 +50,13 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
       //TODO takes 2 old clock cycles and 2 new clock cycles
       //TODO don't assume clock sources are always stable
     } else {
-      LOGF(ERROR, "cannot set CLK.CTR: protected by CCP");
+      logger_->error("cannot set CLK.CTR: protected by CCP");
     }
   } else if(addr == 0x01 && !locked_) { // PSCTRL
     PSCTRL vreg;
     vreg.data = v & 0x7F;
     if(vreg.psadiv > 9 || (vreg.psadiv != 0 && !(vreg.psadiv&1))) {
-      LOGF(ERROR, "invalid PSADIV value");
+      logger_->error("invalid PSADIV value");
     } else {
       psctrl_.data = vreg.data;
       updateFrequencies();
@@ -64,13 +64,13 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x02) { // LOCK
     if(!locked_ && v) {
       if(device_.ccpState() & Device::CCP_IOREG) {
-        LOGF(NOTICE, "locked CLK.CTRL and CLK.PSCTRL");
+        logger_->info("locked CLK.CTRL and CLK.PSCTRL");
         locked_ = true;
       } else {
-        LOGF(ERROR, "cannot set CLK.LOCK: protected by CCP");
+        logger_->error("cannot set CLK.LOCK: protected by CCP");
       }
     } else if(locked_ && !v) {
-      LOGF(ERROR, "CLK.LOCK cannot be cleared");
+      logger_->error("CLK.LOCK cannot be cleared");
     }
   } else if(addr == 0x03) { // RTCCTRL
     rtcen_ = v & 1;
@@ -78,10 +78,10 @@ void CLK::setIo(ioptr_t addr, uint8_t v)
     if(vsrc <= RTCSRC_RCOSC || vsrc == RTCSRC_TOSC32) {
       rtcsrc_ = static_cast<RTCSRC>(vsrc);
     } else {
-      LOGF(ERROR, "invalid RTCSRC value");
+      logger_->error("invalid RTCSRC value");
     }
   } else {
-    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
+    logger_->error("I/O write 0x{:02X}: not writable", addr);
   }
 }
 
@@ -113,9 +113,9 @@ void CLK::updateFrequencies()
       //TODO PLL configuration cannot be modified while PLL is enabled
       f_sys_ = osc_.getPllFrequency();
       if(f_sys_ > 200000000) {
-        LOGF(ERROR, "PLL frequency is too high");
+        logger_->error("PLL frequency is too high");
       } else if(f_sys_ < 10000000) {
-        LOGF(ERROR, "PLL frequency is too low");
+        logger_->error("PLL frequency is too low");
       }
       break;
     case SCLKSEL_XOSC:

@@ -33,7 +33,7 @@ uint8_t OSC::getIo(ioptr_t addr)
   } else if(addr == 0x06) { // DFLLCTRL
     return dfllctrl_.data;
   } else {
-    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: reserved address", addr);
     return 0;
   }
 }
@@ -58,10 +58,10 @@ void OSC::setIo(ioptr_t addr, uint8_t v)
       if(device_.ccpState() & Device::CCP_IOREG) {
         xoscfail_.xoscfden = 1;
       } else {
-        LOGF(ERROR, "cannot set XOSCFAIL.XOSCFDEN: protected by CCP");
+        logger_->error("cannot set XOSCFAIL.XOSCFDEN: protected by CCP");
       }
     } else if(xoscfail_.xoscfden && !vreg.xoscfden) {
-      LOGF(ERROR, "XOSCFAIL.XOSCFDEN cannot be cleared");
+      logger_->error("XOSCFAIL.XOSCFDEN cannot be cleared");
     }
     // XOSCFDIF
     if(vreg.xoscfdif) {
@@ -71,7 +71,7 @@ void OSC::setIo(ioptr_t addr, uint8_t v)
     rc32kcal_ = v;
   } else if(addr == 0x05) { // PLLCTRL
     if((v >> 6) == 1) {
-      LOGF(ERROR, "invalid PLLSRC value");
+      logger_->error("invalid PLLSRC value");
     } else {
       pllsrc_ = static_cast<PLLSRC>(v >> 6);
     }
@@ -80,7 +80,7 @@ void OSC::setIo(ioptr_t addr, uint8_t v)
     //TODO no check nor handling is made here
     dfllctrl_.data = v & 0x03;
   } else {
-    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
+    logger_->error("I/O write 0x{:02X}: not writable", addr);
   }
 }
 

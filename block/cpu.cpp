@@ -40,7 +40,7 @@ uint8_t CPU::getIo(ioptr_t addr)
   } else if(addr == 0x0F) { // SREG
     return sreg_.data;
   } else {
-    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: reserved address", addr);
     return 0;
   }
 }
@@ -67,7 +67,7 @@ void CPU::setIo(ioptr_t addr, uint8_t v)
   } else if(addr == 0x0F) { // SREG
     sreg_.data = v;
   } else {
-    LOGF(ERROR, "I/O write {} + 0x{:02X}: not writable", name(), addr);
+    logger_->error("I/O write 0x{:02X}: not writable", addr);
   }
 }
 

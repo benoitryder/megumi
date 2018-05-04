@@ -22,12 +22,12 @@ uint8_t PMIC::getIo(ioptr_t addr)
   if(addr == 0x00) { // STATUS
     return status_.data;
   } else if(addr == 0x01) { // INTPRI
-    LOGF(WARNING, "I/O read {} + 0x{:02X}: INTPRI not implemented", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: INTPRI not implemented", addr);
     return 0;
   } else if(addr == 0x02) { // CTRL
     return ctrl_.data;
   } else {
-    DLOGF(WARNING, "I/O read {} + 0x{:02X}: reserved address", name(), addr);
+    logger_->warn("I/O read 0x{:02X}: reserved address", addr);
     return 0;
   }
 }
@@ -36,14 +36,14 @@ void PMIC::setIo(ioptr_t addr, uint8_t v)
 {
   assert(addr < IO_SIZE);
   if(addr == 0x01) { // INTPRI
-    LOGF(WARNING, "I/O write {} + 0x{:02X}: INTPRI not implemented", name(), addr);
+    logger_->warn("I/O write 0x{:02X}: INTPRI not implemented", addr);
   } else if(addr == 0x02) { // CTRL
     if(!(device_.ccpState() & Device::CCP_IOREG)) {
       v &= ~(1<<6);
     }
     ctrl_.data = v;
   } else {
-    DLOGF(WARNING, "I/O write {} + 0x{:02X}: not writable", name(), addr);
+    logger_->warn("I/O write 0x{:02X}: not writable", addr);
   }
 }
 

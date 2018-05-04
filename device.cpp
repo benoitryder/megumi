@@ -7,6 +7,9 @@
 #include "log.h"
 
 
+static Log::StaticLogger logger("device");
+
+
 Device::Device(const ModelConf& model, ConfTree& conf):
     // memory map
     flash_size_(model.flash_size),
@@ -179,7 +182,7 @@ void Device::setIvLvl(ivnum_t iv, IntLvl lvl)
       if(iv_pending_.hi.erase(iv)) break;
       break;
     default:
-      LOGF(ERROR, "invalid INTLVL: {}", lvl);
+      logger->critical("invalid INTLVL: {}", lvl);
   }
 }
 
@@ -275,13 +278,15 @@ bool Device::processPendingInterrupts()
     cpu_.sp_ -= 3;
   }
   cpu_.pc_ = iv_addr;
-  DLOGF(NOTICE, "acknowledge interrupt {}, level {}, PC:{:05X}", iv_num, intlvl_new, iv_addr);
+  logger->debug("acknowledge interrupt {}, level {}, PC:{:05X}", iv_num, intlvl_new, iv_addr);
   return true;
 }
 
 
 unsigned int Device::executeNextInstruction()
 {
+  static Log::StaticLogger logger_asm("asm");
+
   uint16_t opcode = flash_data_[cpu_.pc_];
   //TODO check for cpu_.pc_ oveflow? (check other accesses to flash_data_ below)
   //TODO check availability of some opcodes on specific devices
@@ -291,24 +296,24 @@ unsigned int Device::executeNextInstruction()
   // will delay the execution of the next one.
   unsigned int opcode_cycles = 1;
 
-#define DLOGF_OPCODE(f, ...)  DLOGF(INFO, "PC:{:05X} SP:{:04X} OP:{:04X} " f, cpu_.pc_, cpu_.sp_, opcode, ## __VA_ARGS__);
+#define LOG_OPCODE(f, ...)  SPDLOG_DEBUG(logger_asm, "PC:{:05X} SP:{:04X} OP:{:04X} " f, cpu_.pc_, cpu_.sp_, opcode, ## __VA_ARGS__);
 
   // NOPE
   if(opcode == 0) {
-    DLOGF_OPCODE("NOPE");
+    LOG_OPCODE("NOPE");
     cpu_.pc_++;
   }
   // BSET, SE{C,Z,N,V,S,H,T,I}
   else if((opcode & 0xFF8F) == 0x9408) {
     uint8_t s = (opcode >> 4) & 7;
-    DLOGF_OPCODE("BSET {}", s);
+    LOG_OPCODE("BSET {}", s);
     cpu_.sreg_.data |= (1 << s);
     cpu_.pc_++;
   }
   // BCLR, CL{C,Z,N,V,S,H,T,I}
   else if((opcode & 0xFF8F) == 0x9488) {
     uint8_t s = (opcode >> 4) & 7;
-    DLOGF_OPCODE("BCLR {}", s);
+    LOG_OPCODE("BCLR {}", s);
     cpu_.sreg_.data &= ~(1 << s);
     cpu_.pc_++;
   }
@@ -317,7 +322,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFF00) == 0x9A00) {
     uint8_t a = (opcode >> 3) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("SBI 0x{},{}", a, b);
+    LOG_OPCODE("SBI 0x{},{}", a, b);
     //TODO this changes the whole byte, not just one bit
     setIoMem(a, getIoMem(a) | (1 <<b));
     cpu_.pc_++;
@@ -326,7 +331,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFF00) == 0x9800) {
     uint8_t a = (opcode >> 3) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("CBI 0x{},{}", a, b);
+    LOG_OPCODE("CBI 0x{},{}", a, b);
     //TODO this changes the whole byte, not just one bit
     setIoMem(a, getIoMem(a) & ~(1 <<b));
     cpu_.pc_++;
@@ -337,7 +342,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = 0xFF - Rd;
-    DLOGF_OPCODE("COM r{}", d);
+    LOG_OPCODE("COM r{}", d);
     cpu_.sreg_.C = 1;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -350,7 +355,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = (0x100 - Rd) & 0xFF;
-    DLOGF_OPCODE("NEG r{}", d);
+    LOG_OPCODE("NEG r{}", d);
     cpu_.sreg_.C = R != 0;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -363,7 +368,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9402) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
-    DLOGF_OPCODE("SWAP r{}", d);
+    LOG_OPCODE("SWAP r{}", d);
     regfile_[d] = ((Rd & 0x0F) << 4) | ((Rd & 0xF0) >> 4);
     cpu_.pc_++;
   }
@@ -371,7 +376,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9403) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t R = ++regfile_[d];
-    DLOGF_OPCODE("INC r{}", d);
+    LOG_OPCODE("INC r{}", d);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = R == 0x80;
@@ -383,7 +388,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = (Rd >> 1) | (Rd & 0x80);
-    DLOGF_OPCODE("ASR r{}", d);
+    LOG_OPCODE("ASR r{}", d);
     cpu_.sreg_.C = Rd & 1;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -396,7 +401,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = (Rd >> 1);
-    DLOGF_OPCODE("LSR r{}", d);
+    LOG_OPCODE("LSR r{}", d);
     cpu_.sreg_.C = Rd & 1;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = 0;
@@ -409,7 +414,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = (Rd >> 1) | (cpu_.sreg_.C << 7);
-    DLOGF_OPCODE("ROR r{}", d);
+    LOG_OPCODE("ROR r{}", d);
     cpu_.sreg_.C = Rd & 1;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -421,7 +426,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x940A) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t R = --regfile_[d];
-    DLOGF_OPCODE("DEC r{}", d);
+    LOG_OPCODE("DEC r{}", d);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = R == 0x80;
@@ -436,7 +441,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = Rd - Rr;
-    DLOGF_OPCODE("CP r{},r{}", d, r);
+    LOG_OPCODE("CP r{},r{}", d, r);
     cpu_.sreg_.C = ((~Rd & Rr) | (Rr & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -452,7 +457,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = Rd - Rr - cpu_.sreg_.C;
-    DLOGF_OPCODE("CPC r{},r{}", d, r);
+    LOG_OPCODE("CPC r{},r{}", d, r);
     cpu_.sreg_.C = ((~Rd & Rr) | (Rr & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0 && cpu_.sreg_.Z;
     cpu_.sreg_.N = R & 0x80;
@@ -469,7 +474,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd + Rr;
-    DLOGF_OPCODE("ADD r{},r{}", d, r);
+    LOG_OPCODE("ADD r{},r{}", d, r);
     cpu_.sreg_.C = ((Rd & Rr) | (Rr & ~R) | (~R & Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -485,7 +490,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd + Rr + cpu_.sreg_.C;
-    DLOGF_OPCODE("ADC r{},r{}", d, r);
+    LOG_OPCODE("ADC r{},r{}", d, r);
     cpu_.sreg_.C = ((Rd & Rr) | (Rr & ~R) | (~R & Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -502,7 +507,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd - Rr;
-    DLOGF_OPCODE("SUB r{},r{}", d, r);
+    LOG_OPCODE("SUB r{},r{}", d, r);
     cpu_.sreg_.C = ((~Rd & Rr) | (Rr & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -518,7 +523,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd - Rr - cpu_.sreg_.C;
-    DLOGF_OPCODE("SBC r{},r{}", d, r);
+    LOG_OPCODE("SBC r{},r{}", d, r);
     cpu_.sreg_.C = ((~Rd & Rr) | (Rr & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -535,7 +540,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("MUL r{},r{}", d, r);
+    LOG_OPCODE("MUL r{},r{}", d, r);
     reg01_ = R;
     cpu_.sreg_.C = R & 0x8000;
     cpu_.sreg_.Z = R == 0;
@@ -549,7 +554,7 @@ unsigned int Device::executeNextInstruction()
     int16_t Rd = u8_to_s16(regfile_[d]);
     int16_t Rr = u8_to_s16(regfile_[r]);
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("MULS r{},r{}", d, r);
+    LOG_OPCODE("MULS r{},r{}", d, r);
     reg01_ = R;
     cpu_.sreg_.C = R & 0x8000;
     cpu_.sreg_.Z = R == 0;
@@ -563,7 +568,7 @@ unsigned int Device::executeNextInstruction()
     int16_t Rd = u8_to_s16(regfile_[d]);
     uint8_t Rr = regfile_[r];
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("MULSU r{},r{}", d, r);
+    LOG_OPCODE("MULSU r{},r{}", d, r);
     reg01_ = R;
     cpu_.sreg_.C = R & 0x8000;
     cpu_.sreg_.Z = R == 0;
@@ -577,7 +582,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("FMUL r{},r{}", d, r);
+    LOG_OPCODE("FMUL r{},r{}", d, r);
     cpu_.sreg_.C = R & 0x8000; // before left shift
     reg01_ = (R <<= 1);
     cpu_.sreg_.Z = R == 0;
@@ -591,7 +596,7 @@ unsigned int Device::executeNextInstruction()
     int16_t Rd = u8_to_s16(regfile_[d]);
     int16_t Rr = u8_to_s16(regfile_[r]);
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("FMULS r{},r{}", d, r);
+    LOG_OPCODE("FMULS r{},r{}", d, r);
     cpu_.sreg_.C = R & 0x8000; // before left shift
     reg01_ = (R <<= 1);
     cpu_.sreg_.Z = R == 0;
@@ -605,7 +610,7 @@ unsigned int Device::executeNextInstruction()
     int16_t Rd = u8_to_s16(regfile_[d]);
     uint8_t Rr = regfile_[r];
     uint16_t R = Rd * Rr;
-    DLOGF_OPCODE("FMULSU r{},r{}", d, r);
+    LOG_OPCODE("FMULSU r{},r{}", d, r);
     cpu_.sreg_.C = R & 0x8000; // before left shift
     reg01_ = (R <<= 1);
     cpu_.sreg_.Z = R == 0;
@@ -620,7 +625,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd & Rr;
-    DLOGF_OPCODE("AND r{},r{}", d, r);
+    LOG_OPCODE("AND r{},r{}", d, r);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = 0;
@@ -634,7 +639,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd ^ Rr;
-    DLOGF_OPCODE("EOR r{},r{}", d, r);
+    LOG_OPCODE("EOR r{},r{}", d, r);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = 0;
@@ -648,7 +653,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
     uint8_t R = regfile_[d] = Rd | Rr;
-    DLOGF_OPCODE("OR r{},r{}", d, r);
+    LOG_OPCODE("OR r{},r{}", d, r);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = 0;
@@ -659,7 +664,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFC00) == 0x2C00) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t r = (opcode & 0xF) | ((opcode >> 5) & 0x10);
-    DLOGF_OPCODE("MOV r{},r{}", d, r);
+    LOG_OPCODE("MOV r{},r{}", d, r);
     regfile_[d] = regfile_[r];
     cpu_.pc_++;
   }
@@ -670,7 +675,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
     uint8_t Rd = regfile_[d];
     uint8_t R = Rd - K;
-    DLOGF_OPCODE("CPI r{},0x{:02X}", d, K);
+    LOG_OPCODE("CPI r{},0x{:02X}", d, K);
     cpu_.sreg_.C = ((~Rd & K) | (K & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -685,7 +690,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = Rd - K;
-    DLOGF_OPCODE("SUBI r{},0x{:02X}", d, K);
+    LOG_OPCODE("SUBI r{},0x{:02X}", d, K);
     cpu_.sreg_.C = ((~Rd & K) | (K & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -700,7 +705,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = Rd - K - cpu_.sreg_.C;
-    DLOGF_OPCODE("SBCI r{},0x{:02X}", d, K);
+    LOG_OPCODE("SBCI r{},0x{:02X}", d, K);
     cpu_.sreg_.C = ((~Rd & K) | (K & R) | (R & ~Rd)) & 0x80;
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
@@ -715,7 +720,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = Rd & K;
-    DLOGF_OPCODE("ANDI r{},0x{:02X}", d, K);
+    LOG_OPCODE("ANDI r{},0x{:02X}", d, K);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = 0;
@@ -728,7 +733,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
     uint8_t Rd = regfile_[d];
     uint8_t R = regfile_[d] = Rd | K;
-    DLOGF_OPCODE("ORI r{},0x{:02X}", d, K);
+    LOG_OPCODE("ORI r{},0x{:02X}", d, K);
     cpu_.sreg_.Z = R == 0;
     cpu_.sreg_.N = R & 0x80;
     cpu_.sreg_.V = 0;
@@ -740,7 +745,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFF00) == 0x0100) {
     uint8_t d = ((opcode >> 3) & 0x1E);
     uint8_t r = (opcode & 0xF) << 1;
-    DLOGF_OPCODE("MOVW r{}:r{},r{}:r{}", d, d+1, r, r+1);
+    LOG_OPCODE("MOVW r{}:r{},r{}:r{}", d, d+1, r, r+1);
     register_set<16>(&regfile_[d], register_get<16>(&regfile_[r]));
     cpu_.pc_++;
   }
@@ -750,7 +755,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 2) & 0x30);
     uint16_t Rd = register_get<16>(&regfile_[d]);
     uint16_t R = Rd + K;
-    DLOGF_OPCODE("ADIW r{}:r{},0x{:02X}", d, d+1, K);
+    LOG_OPCODE("ADIW r{}:r{},0x{:02X}", d, d+1, K);
     register_set<16>(&regfile_[d], R);
     cpu_.sreg_.C = (~R & Rd) & 0x8000;
     cpu_.sreg_.Z = R == 0;
@@ -765,7 +770,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t K = (opcode & 0xF) | ((opcode >> 2) & 0x30);
     uint16_t Rd = register_get<16>(&regfile_[d]);
     uint16_t R = Rd - K;
-    DLOGF_OPCODE("SBIW r{},0x{:02X}", d, K);
+    LOG_OPCODE("SBIW r{},0x{:02X}", d, K);
     register_set<16>(&regfile_[d], R);
     cpu_.sreg_.C = (R & ~Rd) & 0x8000;
     cpu_.sreg_.Z = R == 0;
@@ -779,7 +784,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE08) == 0xF800) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("BLD r{},{}", d, b);
+    LOG_OPCODE("BLD r{},{}", d, b);
     regfile_[d] = (regfile_[d] & ~(1 << b)) | (cpu_.sreg_.T << b);
     cpu_.pc_++;
   }
@@ -787,7 +792,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE08) == 0xFA00) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("BST r{},{}", d, b);
+    LOG_OPCODE("BST r{},{}", d, b);
     cpu_.sreg_.T = regfile_[d] & (1 << b);
     cpu_.pc_++;
   }
@@ -796,7 +801,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xF000) == 0xE000) {
     uint8_t d = ((opcode >> 4) & 0xF) | 0x10; // 16 <= d <= 31
     uint8_t K = (opcode & 0xF) | ((opcode >> 4) & 0xF0);
-    DLOGF_OPCODE("LDI r{},0x{:02X}", d, K);
+    LOG_OPCODE("LDI r{},0x{:02X}", d, K);
     regfile_[d] = K;
     cpu_.pc_++;
   }
@@ -804,7 +809,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9000) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t k = flash_data_[cpu_.pc_+1];
-    DLOGF_OPCODE("LDS r{},0x{:04X}", d, k);
+    LOG_OPCODE("LDS r{},0x{:04X}", d, k);
     memptr_t addr = k | (cpu_.rampd_ << 16);
     regfile_[d] = getDataMem(addr);
     cpu_.pc_ += 2;
@@ -818,7 +823,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},X  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},X  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     if(addr >= mem_sram_start_) {
       opcode_cycles++; // assume the same for internal and external SRAM
@@ -828,11 +833,11 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x900D) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 26 || d == 27) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},X+", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},X+", d);
     }
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},X+  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},X+  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regx_;
     if(regx_ == 0) { // X overflow, update RAMPX
       cpu_.rampx_++;
@@ -847,7 +852,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x900E) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 26 || d == 27) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},-X", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},-X", d);
     }
     --regx_;
     if(regx_ == 0xFFFF) { // X underflow, update RAMPX
@@ -856,7 +861,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},-X  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},-X  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
     if(addr >= mem_sram_start_) {
@@ -869,7 +874,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t q = (opcode & 0x7) | ((opcode >> 7) & 0x18) | ((opcode >> 8) & 0x20);
     memptr_t addr = (regy_ | (cpu_.rampy_ << 16)) + q;
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LDD r{},Y+{}  @{:05X} = {:02X}", d, q, addr, regfile_[d]);
+    LOG_OPCODE("LDD r{},Y+{}  @{:05X} = {:02X}", d, q, addr, regfile_[d]);
     cpu_.pc_++;
     if(q != 0) {
       opcode_cycles = 2;
@@ -882,11 +887,11 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9009) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 28 || d == 29) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},Y+", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},Y+", d);
     }
     memptr_t addr = regy_ | (cpu_.rampy_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},Y+  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},Y+  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regy_;
     if(regy_ == 0) { // Y overflow, update RAMPY
       cpu_.rampy_++;
@@ -901,7 +906,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x900A) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 28 || d == 29) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},-Y", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},-Y", d);
     }
     --regy_;
     if(regy_ == 0xFFFF) { // Y underflow, update RAMPY
@@ -910,7 +915,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regy_ | (cpu_.rampy_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},-Y  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},-Y  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
     if(addr >= mem_sram_start_) {
@@ -923,7 +928,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t q = (opcode & 0x7) | ((opcode >> 7) & 0x18) | ((opcode >> 8) & 0x20);
     memptr_t addr = (regz_ | (cpu_.rampz_ << 16)) + q;
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LDD r{},Z+{}  @{:05X} = {:02X}", d, q, addr, regfile_[d]);
+    LOG_OPCODE("LDD r{},Z+{}  @{:05X} = {:02X}", d, q, addr, regfile_[d]);
     cpu_.pc_++;
     if(q != 0) {
       opcode_cycles = 2;
@@ -936,11 +941,11 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9001) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 30 || d == 31) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},Z+", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},Z+", d);
     }
     memptr_t addr = regz_ | (cpu_.rampz_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},Z+  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},Z+  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regz_;
     if(regz_ == 0) { // Z overflow, update RAMPZ
       cpu_.rampz_++;
@@ -955,7 +960,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9002) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 30 || d == 31) {
-      LOGF(ERROR, "undefined opcode behavior: LD r{},-Z", d);
+      logger_asm->critical("undefined opcode behavior: LD r{},-Z", d);
     }
     --regz_;
     if(regz_ == 0xFFFF) { // Z underflow, update RAMPZ
@@ -964,7 +969,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regz_ | (cpu_.rampz_ << 16);
     regfile_[d] = getDataMem(addr);
-    DLOGF_OPCODE("LD r{},-Z  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("LD r{},-Z  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
     if(addr >= mem_sram_start_) {
@@ -977,7 +982,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t k = flash_data_[cpu_.pc_+1];
     setDataMem(k | (cpu_.rampd_ << 16), regfile_[d]);
-    DLOGF_OPCODE("STS 0x{:04X},r{}", k, d);
+    LOG_OPCODE("STS 0x{:04X},r{}", k, d);
     cpu_.pc_ += 2;
     opcode_cycles = 2;
   }
@@ -986,18 +991,18 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST X,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST X,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
   }
   // ST (X ii)
   else if((opcode & 0xFE0F) == 0x920D) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 26 || d == 27) {
-      LOGF(ERROR, "undefined opcode behavior: ST X+,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST X+,r{}", d);
     }
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST X+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST X+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regx_;
     if(regx_ == 0) { // X overflow, update RAMPX
       cpu_.rampx_++;
@@ -1009,7 +1014,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x920E) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 26 || d == 27) {
-      LOGF(ERROR, "undefined opcode behavior: ST -X,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST -X,r{}", d);
     }
     --regx_;
     if(regx_ == 0xFFFF) { // X underflow, update RAMPX
@@ -1018,7 +1023,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regx_ | (cpu_.rampx_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST -X,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST -X,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
   }
@@ -1028,7 +1033,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t q = (opcode & 0x7) | ((opcode >> 7) & 0x18) | ((opcode >> 8) & 0x20);
     memptr_t addr = (regy_ | (cpu_.rampy_ << 16)) + q;
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("STD Y+{},r{}  @{:05X} = {:02X}", q, d, addr, regfile_[d]);
+    LOG_OPCODE("STD Y+{},r{}  @{:05X} = {:02X}", q, d, addr, regfile_[d]);
     cpu_.pc_++;
     if(q != 0) {
       opcode_cycles = 2;
@@ -1038,11 +1043,11 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9209) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 28 || d == 29) {
-      LOGF(ERROR, "undefined opcode behavior: ST Y+,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST Y+,r{}", d);
     }
     memptr_t addr = regy_ | (cpu_.rampy_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST Y+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST Y+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regy_;
     if(regy_ == 0) { // Y overflow, update RAMPY
       cpu_.rampy_++;
@@ -1054,7 +1059,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x920A) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 28 || d == 29) {
-      LOGF(ERROR, "undefined opcode behavior: ST -Y,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST -Y,r{}", d);
     }
     --regy_;
     if(regy_ == 0xFFFF) { // Y underflow, update RAMPY
@@ -1063,7 +1068,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regy_ | (cpu_.rampy_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST -Y,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST -Y,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
   }
@@ -1073,7 +1078,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t q = (opcode & 0x7) | ((opcode >> 7) & 0x18) | ((opcode >> 8) & 0x20);
     memptr_t addr = (regz_ | (cpu_.rampz_ << 16)) + q;
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("STD Z+{},r{}  @{:05X} = {:02X}", q, d, addr, regfile_[d]);
+    LOG_OPCODE("STD Z+{},r{}  @{:05X} = {:02X}", q, d, addr, regfile_[d]);
     cpu_.pc_++;
     if(q != 0) {
       opcode_cycles = 2;
@@ -1083,11 +1088,11 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9201) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 30 || d == 31) {
-      LOGF(ERROR, "undefined opcode behavior: ST Z+,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST Z+,r{}", d);
     }
     memptr_t addr = regz_ | (cpu_.rampz_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST Z+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST Z+,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     ++regz_;
     if(regz_ == 0) { // Z overflow, update RAMPZ
       cpu_.rampz_++;
@@ -1099,7 +1104,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0F) == 0x9202) {
     uint8_t d = (opcode >> 4) & 0x1F;
     if(d == 30 || d == 31) {
-      LOGF(ERROR, "undefined opcode behavior: ST -Z,r{}", d);
+      logger_asm->critical("undefined opcode behavior: ST -Z,r{}", d);
     }
     --regz_;
     if(regz_ == 0xFFFF) { // Z underflow, update RAMPZ
@@ -1108,7 +1113,7 @@ unsigned int Device::executeNextInstruction()
     }
     memptr_t addr = regz_ | (cpu_.rampz_ << 16);
     setDataMem(addr, regfile_[d]);
-    DLOGF_OPCODE("ST -Z,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
+    LOG_OPCODE("ST -Z,r{}  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
   }
@@ -1117,7 +1122,7 @@ unsigned int Device::executeNextInstruction()
   else if(opcode == 0x95C8) {
     uint16_t z = regz_;
     uint16_t v = flash_data_[z>>1];
-    DLOGF_OPCODE("LPM r0,Z");
+    LOG_OPCODE("LPM r0,Z");
     regfile_[0] = (z & 1) ? (v >> 8) & 0xFF : (v & 0xFF);
     cpu_.pc_++;
     opcode_cycles = 3;
@@ -1127,7 +1132,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t z = regz_;
     uint16_t v = flash_data_[z>>1];
-    DLOGF_OPCODE("LPM r{},Z{}", d, (opcode & 1) ? "+" : "");
+    LOG_OPCODE("LPM r{},Z{}", d, (opcode & 1) ? "+" : "");
     regfile_[d] = (z & 1) ? (v >> 8) & 0xFF : (v & 0xFF);
     if(opcode & 1) {
       ++regz_;
@@ -1139,7 +1144,7 @@ unsigned int Device::executeNextInstruction()
   else if(opcode == 0x95D8) {
     uint16_t z = regz_;
     uint16_t v = flash_data_[(z>>1) | (cpu_.rampz_ << 7)];
-    DLOGF_OPCODE("ELPM r0,Z");
+    LOG_OPCODE("ELPM r0,Z");
     regfile_[0] = (z & 1) ? (v >> 8) & 0xFF : (v & 0xFF);
     cpu_.pc_++;
     opcode_cycles = 3;
@@ -1149,7 +1154,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint16_t z = regz_;
     uint16_t v = flash_data_[(z>>1) | (cpu_.rampz_ << 7)];
-    DLOGF_OPCODE("ELPM r{},Z{}", d, (opcode & 1) ? "+" : "");
+    LOG_OPCODE("ELPM r{},Z{}", d, (opcode & 1) ? "+" : "");
     regfile_[d] = (z & 1) ? (v >> 8) & 0xFF : (v & 0xFF);
     if(opcode & 1) {
       ++regz_;
@@ -1165,7 +1170,7 @@ unsigned int Device::executeNextInstruction()
 
   // SPM, SPM#2
   else if(opcode == 0x95E8 || opcode == 0x95F8) {
-    DLOGF_OPCODE("SPM");
+    LOG_OPCODE("SPM");
     //TODO
     cpu_.pc_++;
   }
@@ -1175,7 +1180,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t z = getDataMem(regz_);
-    DLOGF_OPCODE("XCH r{}", d);
+    LOG_OPCODE("XCH r{}", d);
     setDataMem(regz_, Rd);
     regfile_[d] = z;
     cpu_.pc_++;
@@ -1185,7 +1190,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t z = getDataMem(regz_);
-    DLOGF_OPCODE("LAC r{}", d);
+    LOG_OPCODE("LAC r{}", d);
     setDataMem(regz_, Rd & ~z);
     cpu_.pc_++;
   }
@@ -1194,7 +1199,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t z = getDataMem(regz_);
-    DLOGF_OPCODE("LAS r{}", d);
+    LOG_OPCODE("LAS r{}", d);
     setDataMem(regz_, Rd | z);
     regfile_[d] = z;
     cpu_.pc_++;
@@ -1204,7 +1209,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t Rd = regfile_[d];
     uint8_t z = getDataMem(regz_);
-    DLOGF_OPCODE("LAT r{}", d);
+    LOG_OPCODE("LAT r{}", d);
     setDataMem(regz_, Rd ^ z);
     regfile_[d] = z;
     cpu_.pc_++;
@@ -1214,28 +1219,28 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0E) == 0x940C) {
     uint16_t opcode2 = flash_data_[cpu_.pc_+1];
     flashptr_t k = ((flashptr_t)(((opcode >> 3) & 0x3E) | (opcode & 1)) << 16) | opcode2;
-    DLOGF_OPCODE("JMP 0x{:X}", k);
+    LOG_OPCODE("JMP 0x{:X}", k);
     cpu_.pc_ = k;
     opcode_cycles = 3;
   }
   // RJMP
   else if((opcode & 0xF000) == 0xC000) {
     int16_t k = u16_to_s16<12>(opcode & 0xFFF);
-    DLOGF_OPCODE("RJMP {}", k);
+    LOG_OPCODE("RJMP {}", k);
     cpu_.pc_ += k + 1;
     opcode_cycles = 2;
   }
   // IJMP
   else if(opcode == 0x9409) {
-    DLOGF_OPCODE("IJMP");
+    LOG_OPCODE("IJMP");
     cpu_.pc_ = regz_;
     opcode_cycles = 2;
   }
   // EIJMP
   else if(opcode == 0x9419) {
-    DLOGF_OPCODE("EIJMP");
+    LOG_OPCODE("EIJMP");
     if(flash_size_ <= 0x20000) {
-      LOGF(ERROR, "EIJMP not available: flash size is less than 128K");
+      logger_asm->critical("EIJMP not available: flash size is less than 128K");
       cpu_.pc_++;
     } else {
       cpu_.pc_ = regz_ | ((flashptr_t)cpu_.eind_ << 16);
@@ -1248,7 +1253,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xF800) == 0xF000) {
     uint8_t s = opcode & 7;
     int8_t k = u8_to_s8<7>((opcode >> 3) & 0x7F);
-    DLOGF_OPCODE("BRB{} {},{}", (opcode & 0x400) ? 'C' : 'S', s, (int)k);
+    LOG_OPCODE("BRB{} {},{}", (opcode & 0x400) ? 'C' : 'S', s, (int)k);
     if( (((cpu_.sreg_.data >> s) ^ (opcode >> 10)) & 1) ) {
       cpu_.pc_ += k + 1;
       opcode_cycles = 2;
@@ -1261,7 +1266,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFC00) == 0xFC00) { // bit 3 not masked
     uint8_t r = (opcode >> 4) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("SBR{} r{},{}", (opcode & 0x200) ? 'S' : 'C', r, b);
+    LOG_OPCODE("SBR{} r{},{}", (opcode & 0x200) ? 'S' : 'C', r, b);
     if( !(((regfile_[r] >> b) ^ (opcode >> 9)) & 1) ) {
       uint16_t opcode2 = flash_data_[cpu_.pc_+1];
       if(opcode_is_32b(opcode2)) {
@@ -1279,7 +1284,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFD00) == 0x9900) {
     uint8_t a = (opcode >> 3) & 0x1F;
     uint8_t b = opcode & 7;
-    DLOGF_OPCODE("SBI{} 0x{:X},{}", (opcode & 0x200) ? 'S' : 'C', a, b);
+    LOG_OPCODE("SBI{} 0x{:X},{}", (opcode & 0x200) ? 'S' : 'C', a, b);
     if( !(((getIoMem(a) >> b) ^ (opcode >> 9)) & 1) ) {
       uint16_t opcode2 = flash_data_[cpu_.pc_+1];
       if(opcode_is_32b(opcode2)) {
@@ -1299,7 +1304,7 @@ unsigned int Device::executeNextInstruction()
     uint8_t r = (opcode & 0xF) | ((opcode >> 5) & 0x10);
     uint8_t Rd = regfile_[d];
     uint8_t Rr = regfile_[r];
-    DLOGF_OPCODE("CPSE r{},r{}", d, r);
+    LOG_OPCODE("CPSE r{},r{}", d, r);
     if( Rd == Rr ) {
       uint16_t opcode2 = flash_data_[cpu_.pc_+1];
       if(opcode_is_32b(opcode2)) {
@@ -1318,7 +1323,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xFE0E) == 0x940E) {
     uint16_t opcode2 = flash_data_[cpu_.pc_+1];
     flashptr_t k = ((flashptr_t)(((opcode >> 3) & 0x3E) | (opcode & 1)) << 16) | opcode2;
-    DLOGF_OPCODE("CALL 0x{:X}", k);
+    LOG_OPCODE("CALL 0x{:X}", k);
     //TODO detect stack overflows
     if(flash_size_ <= 0x20000) {
       stack_set<16>(stack(), cpu_.pc_+2);
@@ -1334,7 +1339,7 @@ unsigned int Device::executeNextInstruction()
   // RCALL
   else if((opcode & 0xF000) == 0xD000) {
     int16_t k = u16_to_s16<12>(opcode & 0xFFF);
-    DLOGF_OPCODE("RCALL {}", k);
+    LOG_OPCODE("RCALL {}", k);
     //TODO detect stack overflows
     if(flash_size_ <= 0x20000) {
       stack_set<16>(stack(), cpu_.pc_+1);
@@ -1349,7 +1354,7 @@ unsigned int Device::executeNextInstruction()
   }
   // ICALL
   else if(opcode == 0x9509) {
-    DLOGF_OPCODE("ICALL");
+    LOG_OPCODE("ICALL");
     //TODO detect stack overflows
     if(flash_size_ <= 0x20000) {
       stack_set<16>(stack(), cpu_.pc_+1);
@@ -1364,10 +1369,10 @@ unsigned int Device::executeNextInstruction()
   }
   // EICALL
   else if(opcode == 0x9519) {
-    DLOGF_OPCODE("EICALL");
+    LOG_OPCODE("EICALL");
     //TODO detect stack overflows
     if(flash_size_ <= 0x20000) {
-      LOGF(ERROR, "EICALL not available: flash size is less than 128K");
+      logger_asm->critical("EICALL not available: flash size is less than 128K");
       cpu_.pc_++;
     } else {
       stack_set<24>(stack(), cpu_.pc_+1);
@@ -1379,7 +1384,7 @@ unsigned int Device::executeNextInstruction()
 
   // RET
   else if(opcode == 0x9508) {
-    DLOGF_OPCODE("RET");
+    LOG_OPCODE("RET");
     if(flash_size_ <= 0x20000) {
       cpu_.sp_ += 2;
       cpu_.pc_ = stack_get<16>(stack());
@@ -1392,7 +1397,7 @@ unsigned int Device::executeNextInstruction()
   }
   // RETI
   else if(opcode == 0x9518) {
-    DLOGF_OPCODE("RETI");
+    LOG_OPCODE("RETI");
     // Clear the "interrupt executing" flag of highest level.
     // The ASM specs wrongly states that the SREG's I bit is set
     // which is not true on XMEGA devices.
@@ -1405,7 +1410,7 @@ unsigned int Device::executeNextInstruction()
     } else if(pmic_.status_.lolvlex) {
       pmic_.status_.lolvlex = 0;
     } else {
-      LOGF(ERROR, "RETI but no active interruption");
+      logger_asm->critical("RETI but no active interruption");
     }
     if(flash_size_ <= 0x20000) {
       cpu_.sp_ += 2;
@@ -1421,7 +1426,7 @@ unsigned int Device::executeNextInstruction()
   // POP
   else if((opcode & 0xFE0F) == 0x900F) {
     uint8_t d = (opcode >> 4) & 0x1F;
-    DLOGF_OPCODE("POP r{}", d);
+    LOG_OPCODE("POP r{}", d);
     cpu_.sp_++;
     regfile_[d] = *stack();
     cpu_.pc_++;
@@ -1429,7 +1434,7 @@ unsigned int Device::executeNextInstruction()
   // PUSH
   else if((opcode & 0xFE0F) == 0x920F) {
     uint8_t r = (opcode >> 4) & 0x1F;
-    DLOGF_OPCODE("PUSH r{}", r);
+    LOG_OPCODE("PUSH r{}", r);
     *stack() = regfile_[r];
     cpu_.sp_--;
     cpu_.pc_++;
@@ -1439,7 +1444,7 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xF800) == 0xB000) {
     uint8_t d = (opcode >> 4) & 0x1F;
     uint8_t a = (opcode & 0xF) | ((opcode >> 5) & 0x30);
-    DLOGF_OPCODE("IN r{},0x{:X}", d, a);
+    LOG_OPCODE("IN r{},0x{:X}", d, a);
     regfile_[d] = getIoMem(a);
     cpu_.pc_++;
   }
@@ -1447,42 +1452,42 @@ unsigned int Device::executeNextInstruction()
   else if((opcode & 0xF800) == 0xB800) {
     uint8_t r = (opcode >> 4) & 0x1F;
     uint8_t a = (opcode & 0xF) | ((opcode >> 5) & 0x30);
-    DLOGF_OPCODE("OUT 0x{:X},r{}", a, r);
+    LOG_OPCODE("OUT 0x{:X},r{}", a, r);
     setIoMem(a, regfile_[r]);
     cpu_.pc_++;
   }
 
   // WDR
   else if(opcode == 0x95A8) {
-    DLOGF_OPCODE("WDR");
+    LOG_OPCODE("WDR");
     //TODO
     cpu_.pc_++;
   }
   // SLEEP
   else if(opcode == 0x9588) {
-    DLOGF_OPCODE("SLEEP");
+    LOG_OPCODE("SLEEP");
     //TODO
     cpu_.pc_++;
   }
   // BREAK
   else if(opcode == 0x9598) {
-    DLOGF_OPCODE("BREAK");
+    LOG_OPCODE("BREAK");
     breaked_ = true;
     cpu_.pc_++;
   }
   // DES
   else if((opcode & 0xFF0F) == 0x940B) {
-    DLOGF_OPCODE("DES");
+    LOG_OPCODE("DES");
     //TODO
     cpu_.pc_++;
   }
 
   else {
-    LOGF(ERROR, "PC:{:05X} SP:{:04X} OP:{:04X} unknown opcode", cpu_.pc_, cpu_.sp_, opcode);
+    logger_asm->critical("PC:{:05X} SP:{:04X} OP:{:04X} unknown opcode", cpu_.pc_, cpu_.sp_, opcode);
     cpu_.pc_++;
   }
 
-#undef DLOGF_OPCODE
+#undef LOG_OPCODE
   return opcode_cycles;
 }
 
@@ -1525,7 +1530,7 @@ void Device::connectBlock(Block* block)
   ioptr_t io_end = io_start + block->io_size();
   ivnum_t iv_start = block->iv_base();
   ivnum_t iv_end = iv_start + block->iv_count();
-  LOG(INFO) << "connecting block " << block->name();
+  logger->info("connecting block {}", block->name());
   for(const auto it: blocks_) {
     const Block* block2 = it.second;
     if(io_start >= block2->io_addr() && io_end <= block2->io_addr() + block2->io_size()) {
@@ -1548,7 +1553,7 @@ void Device::setSP(uint16_t sp)
 {
   if(sp >= mem_sram_start_ + mem_sram_start_) {
     //XXX exsram should be allowed
-    LOGF(ERROR, "invalid SP value (overflow): 0x{:02X}", sp);
+    logger->critical("invalid SP value (overflow): 0x{:02X}", sp);
   } else {
     cpu_.sp_ = sp;
   }
@@ -1557,7 +1562,7 @@ void Device::setSP(uint16_t sp)
 void Device::setPC(flashptr_t pc)
 {
   if(pc >= flash_size_) {
-    LOGF(ERROR, "invalid PC value (overflow): 0x{:X}", pc);
+    logger->critical("invalid PC value (overflow): 0x{:X}", pc);
     throw std::runtime_error("PC overflow");
   } else {
     cpu_.pc_ = pc;
@@ -1570,17 +1575,17 @@ uint8_t Device::getDataMem(memptr_t addr)
   if(addr < mem_io_size_) {
     return Device::getIoMem(addr);
   } else if(addr >= mem_eeprom_start_ && addr < mem_eeprom_start_+mem_eeprom_size_) {
-    LOG(WARNING) << "EEPROM read access not supported";
+    logger->warn("EEPROM read access not supported at 0x{:x}", addr);
     return 0; //TODO
   } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
     return sram_data_[addr-mem_sram_start_];
   } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
     return Device::getEmulatorMem(addr);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
-    LOG(WARNING) << "external SRAM read access not supported";
+    logger->warn("external SRAM read access not supported: 0x{:X}", addr);
     return 0; //TODO
   } else {
-    LOGF(ERROR, "invalid data memory address to read: 0x{:X}", addr);
+    logger->error("invalid data memory address to read: 0x{:X}", addr);
     return 0;
   }
 }
@@ -1590,15 +1595,15 @@ void Device::setDataMem(memptr_t addr, uint8_t v)
   if(addr < mem_io_size_) {
     Device::setIoMem(addr, v);
   } else if(addr >= mem_eeprom_start_ && addr < mem_eeprom_start_+mem_eeprom_size_) {
-    LOG(WARNING) << "EEPROM write access not supported";
+    logger->warn("EEPROM write access not supported at 0x{:x}", addr);
   } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
     sram_data_[addr-mem_sram_start_] = v;
   } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
     Device::setEmulatorMem(addr, v);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
-    LOG(WARNING) << "external SRAM write access not supported";
+    logger->warn("external SRAM write access not supported at 0x{:x}", addr);
   } else {
-    LOGF(ERROR, "invalid data memory address to write: 0x{:X}", addr);
+    logger->error("invalid data memory address to write: 0x{:X}", addr);
   }
 }
 
@@ -1606,7 +1611,7 @@ uint8_t Device::getIoMem(ioptr_t addr)
 {
   Block* block = getBlock(addr);
   if(block == NULL) {
-    LOGF(ERROR, "invalid I/O address to read: 0x{:X} (no block)", addr);
+    logger->error("invalid I/O address to read: 0x{:X} (no block)", addr);
     return 0;
   }
   return block->getIo(addr - block->io_addr());
@@ -1616,7 +1621,7 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
 {
   Block* block = getBlock(addr);
   if(block == NULL) {
-    LOGF(ERROR, "invalid I/O address to write: 0x{:X} (no block)", addr);
+    logger->error("invalid I/O address to write: 0x{:X} (no block)", addr);
     return;
   }
   block->setIo(addr - block->io_addr(), v);
@@ -1632,14 +1637,14 @@ uint8_t Device::getEmulatorMem(memptr_t addr)
     case 0x03:
       return (clk_sys_tick_ >> ((offset - 0x00) * 8)) & 0xff;
     default:
-      LOGF(WARNING, "emulator memory ready 0x{:06X}: reserved address", addr);
+      logger->warn("emulator memory ready 0x{:06X}: reserved address", addr);
       return 0;
   }
 }
 
 void Device::setEmulatorMem(memptr_t addr, uint8_t)
 {
-  LOGF(ERROR, "emulator memory write 0x{:06X}: not writable", addr);
+  logger->error("emulator memory write 0x{:06X}: not writable", addr);
 }
 
 
@@ -1662,7 +1667,7 @@ void Device::unschedule(const ClockEvent* ev)
       return;
     }
   }
-  LOGF(ERROR, "cannot unschedule event: not found");
+  logger->error("cannot unschedule event: not found");
 }
 
 
@@ -1696,7 +1701,7 @@ unsigned int Device::getClockScale(ClockType clock) const
     case ClockType::PER4:
       return clk_.prescaler_a_;
     case ClockType::ASY:
-      LOG(WARNING) << "ASY clock not supported";
+      logger->warn("ASY clock not supported");
       return 1;
     default:
       throw std::runtime_error("invalid clock type");

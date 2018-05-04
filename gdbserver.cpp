@@ -2,7 +2,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #undef ERROR
-#define close closesocket
+//#define close closesocket
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -16,6 +16,8 @@
 #include "common.h"
 #include "log.h"
 
+
+static Log::StaticLogger logger("gdbserver");
 
 // parse/build helper methods
 
@@ -163,14 +165,14 @@ void GdbServer::run(int port)
     ::close(sock_server);
     throw GdbServerError(errno, "failed to listen on server socket");
   }
-  LOGF(NOTICE, "GDB server: listening on port {}", port);
+  logger->info("GDB server: listening on port {}", port);
 
   sock_client_ = ::accept(sock_server, NULL, NULL);
   if(sock_client_ < 0) {
     ::close(sock_server);
     throw GdbServerError(errno, "accept() failed");
   }
-  LOGF(NOTICE, "GDB server: client connected");
+  logger->info("GDB server: client connected");
 
   try {
     // handle client 
@@ -215,12 +217,12 @@ void GdbServer::execStep()
 void GdbServer::processPacket(const std::string& data)
 {
   if(data.size() < 1) {
-    DLOGF(WARNING, "GDB server: empty packet data");
+    logger->warn("GDB server: empty packet data");
     return;
   }
 
   //TODO some commands silently fails (eg. SP overflow)
-  DLOGF(INFO, "GDB server: received command: {}", data);
+  logger->debug("GDB server: received command: {}", data);
 
   std::string reply;
   try {
@@ -233,7 +235,7 @@ void GdbServer::processPacket(const std::string& data)
         } else if(subcmd == "C") {
           build_hex_be(&reply, 1); // only use thread 1
         } else {
-          DLOGF(INFO, "GDB server: unhandled query: {}", subcmd);
+          logger->warn("GDB server: unhandled query: {}", subcmd);
         }
       } break;
 
@@ -432,11 +434,11 @@ void GdbServer::processPacket(const std::string& data)
       } break;
 
       default:
-        DLOGF(INFO, "GDB server: unhandled packet: {}", data[0]);
+        logger->warn("GDB server: unhandled packet: {}", data[0]);
         // not handled, empty reply
     }
   } catch(const GdbServerError& e) {
-    DLOGF(ERROR, "GDB server: error for command '{}': {}", data[0], e.what());
+    logger->error("GDB server: error for command '{}': {}", data[0], e.what());
     reply = "E00";
   }
 
@@ -504,7 +506,7 @@ std::string GdbServer::recvPacket()
 
 void GdbServer::sendPacket(const std::string& data)
 {
-  DLOGF(INFO, "GDB server: send packet: {}", data);
+  logger->debug("GDB server: send packet: {}", data);
   const size_t data_size = data.size();
 
   // compute checksum

@@ -5,6 +5,7 @@
 #include <string>
 #include <boost/property_tree/ptree_fwd.hpp>
 #include "common.h"
+#include "log.h"
 
 class Device;
 class ClockEvent;
@@ -47,6 +48,8 @@ class Block
  protected:
   /// Device the block is connected to
   Device& device_;
+  /// Logger for this block
+  std::shared_ptr<spdlog::logger> logger_;
   /// Set level of a block's IV, relative to IV base
   void setIvLvl(ivnum_t iv, IntLvl lvl) const;
 
