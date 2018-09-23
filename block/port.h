@@ -10,8 +10,8 @@ namespace block {
  */
 class Port: public Block
 {
-  static const ioptr_t IO_SIZE = 32;
-  static const ivnum_t IV_COUNT = 2;
+  static constexpr ioptr_t IO_SIZE = 32;
+  static constexpr ivnum_t IV_COUNT = 2;
 
  public:
   Port(Device& dev, const Instance<Port>& instance);
@@ -33,17 +33,17 @@ class Port: public Block
 
 
 namespace instances {
-  const Instance<Port> PORTA = { "PORTA", 0x0600,  66 };
-  const Instance<Port> PORTB = { "PORTB", 0x0620,  34 };
-  const Instance<Port> PORTC = { "PORTC", 0x0640,   2 };
-  const Instance<Port> PORTD = { "PORTD", 0x0660,  64 };
-  const Instance<Port> PORTE = { "PORTE", 0x0680,  43 };
-  const Instance<Port> PORTF = { "PORTF", 0x06A0, 104 };
-  const Instance<Port> PORTH = { "PORTH", 0x06E0,  96 };
-  const Instance<Port> PORTJ = { "PORTJ", 0x0700,  98 };
-  const Instance<Port> PORTK = { "PORTK", 0x0720, 100 };
-  const Instance<Port> PORTQ = { "PORTQ", 0x07C0,  94 };
-  const Instance<Port> PORTR = { "PORTR", 0x07E0,   4 };
+  constexpr Instance<Port> PORTA = { "PORTA", 0x0600,  66 };
+  constexpr Instance<Port> PORTB = { "PORTB", 0x0620,  34 };
+  constexpr Instance<Port> PORTC = { "PORTC", 0x0640,   2 };
+  constexpr Instance<Port> PORTD = { "PORTD", 0x0660,  64 };
+  constexpr Instance<Port> PORTE = { "PORTE", 0x0680,  43 };
+  constexpr Instance<Port> PORTF = { "PORTF", 0x06A0, 104 };
+  constexpr Instance<Port> PORTH = { "PORTH", 0x06E0,  96 };
+  constexpr Instance<Port> PORTJ = { "PORTJ", 0x0700,  98 };
+  constexpr Instance<Port> PORTK = { "PORTK", 0x0720, 100 };
+  constexpr Instance<Port> PORTQ = { "PORTQ", 0x07C0,  94 };
+  constexpr Instance<Port> PORTR = { "PORTR", 0x07E0,   4 };
 }
 
 }

@@ -11,7 +11,7 @@ namespace block {
 class PMIC: public Block
 {
   friend class ::Device;
-  static const ioptr_t IO_SIZE = 3;
+  static constexpr ioptr_t IO_SIZE = 3;
 
  public:
   PMIC(Device& dev);

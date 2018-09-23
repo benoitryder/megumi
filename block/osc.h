@@ -9,7 +9,7 @@ namespace block {
 /// OSC peripheral
 class OSC: public Block
 {
-  static const ioptr_t IO_SIZE = 8;
+  static constexpr ioptr_t IO_SIZE = 8;
   enum {
     IV_OSCF = 0,
     IV_COUNT

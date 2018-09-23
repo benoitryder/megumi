@@ -54,7 +54,7 @@ class USARTLink
  */
 class USART: public Block
 {
-  static const ioptr_t IO_SIZE = 8;
+  static constexpr ioptr_t IO_SIZE = 8;
   enum {
     IV_RXC = 0,
     IV_DRE,
@@ -147,14 +147,14 @@ class USART: public Block
 
 
 namespace instances {
-  const Instance<USART> USARTC0 = { "USARTC0", 0x08A0,  25 };
-  const Instance<USART> USARTC1 = { "USARTC1", 0x08B0,  28 };
-  const Instance<USART> USARTD0 = { "USARTD0", 0x09A0,  88 };
-  const Instance<USART> USARTD1 = { "USARTD1", 0x09B0,  91 };
-  const Instance<USART> USARTE0 = { "USARTE0", 0x0AA0,  58 };
-  const Instance<USART> USARTE1 = { "USARTE1", 0x0AB0,  61 };
-  const Instance<USART> USARTF0 = { "USARTF0", 0x0BA0, 119 };
-  const Instance<USART> USARTF1 = { "USARTF1", 0x0BB0, 122 };
+  constexpr Instance<USART> USARTC0 = { "USARTC0", 0x08A0,  25 };
+  constexpr Instance<USART> USARTC1 = { "USARTC1", 0x08B0,  28 };
+  constexpr Instance<USART> USARTD0 = { "USARTD0", 0x09A0,  88 };
+  constexpr Instance<USART> USARTD1 = { "USARTD1", 0x09B0,  91 };
+  constexpr Instance<USART> USARTE0 = { "USARTE0", 0x0AA0,  58 };
+  constexpr Instance<USART> USARTE1 = { "USARTE1", 0x0AB0,  61 };
+  constexpr Instance<USART> USARTF0 = { "USARTF0", 0x0BA0, 119 };
+  constexpr Instance<USART> USARTF1 = { "USARTF1", 0x0BB0, 122 };
 }
 
 }

@@ -12,7 +12,7 @@ class OSC;
 class CLK: public Block
 {
   friend class ::Device;
-  static const ioptr_t IO_SIZE = 8;
+  static constexpr ioptr_t IO_SIZE = 8;
 
  public:
   CLK(Device& dev, const OSC& osc);

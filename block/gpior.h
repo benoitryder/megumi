@@ -11,7 +11,7 @@ namespace block {
  */
 class GPIOR: public Block
 {
-  static const ioptr_t IO_SIZE = 16;
+  static constexpr ioptr_t IO_SIZE = 16;
 
  public:
   GPIOR(Device& dev);

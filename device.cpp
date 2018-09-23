@@ -21,7 +21,7 @@ Device::Device(const ModelConf& model, ConfTree& conf):
     flash_boot_size_(model.flash_boot_size),
     mem_eeprom_size_(model.mem_eeprom_size),
     mem_sram_size_(model.mem_sram_size),
-    mem_exsram_start_(mem_sram_start_ + mem_sram_size_),
+    mem_exsram_start_(MEM_SRAM_START + mem_sram_size_),
     mem_exsram_size_(model.has_exsram ? MEM_MAX_SIZE - mem_exsram_start_ : 0),
     // conf
     conf_(conf),
@@ -48,7 +48,7 @@ Device::Device(const ModelConf& model, ConfTree& conf):
   DEVICE_CHECK(flash_boot_size_ < flash_app_size_, "flash bootloader larger than flash application");
 
   DEVICE_CHECK(mem_eeprom_size_ <= 0x1000, "memory mapped EEPROM is too large");
-  DEVICE_CHECK(mem_sram_size_ < MEM_MAX_SIZE - mem_sram_start_, "internal SRAM is too large");
+  DEVICE_CHECK(mem_sram_size_ < MEM_MAX_SIZE - MEM_SRAM_START, "internal SRAM is too large");
 
 #undef DEVICE_CHECK
 
@@ -814,7 +814,7 @@ unsigned int Device::executeNextInstruction()
     regfile_[d] = getDataMem(addr);
     cpu_.pc_ += 2;
     opcode_cycles = 2;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -825,7 +825,7 @@ unsigned int Device::executeNextInstruction()
     regfile_[d] = getDataMem(addr);
     LOG_OPCODE("LD r{},X  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -844,7 +844,7 @@ unsigned int Device::executeNextInstruction()
       cpu_.rampx_ &= cpu_.ramp_mask_;
     }
     cpu_.pc_++;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -864,7 +864,7 @@ unsigned int Device::executeNextInstruction()
     LOG_OPCODE("LD r{},-X  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -879,7 +879,7 @@ unsigned int Device::executeNextInstruction()
     if(q != 0) {
       opcode_cycles = 2;
     }
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -898,7 +898,7 @@ unsigned int Device::executeNextInstruction()
       cpu_.rampy_ &= cpu_.ramp_mask_;
     }
     cpu_.pc_++;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -918,7 +918,7 @@ unsigned int Device::executeNextInstruction()
     LOG_OPCODE("LD r{},-Y  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -933,7 +933,7 @@ unsigned int Device::executeNextInstruction()
     if(q != 0) {
       opcode_cycles = 2;
     }
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -952,7 +952,7 @@ unsigned int Device::executeNextInstruction()
       cpu_.rampz_ &= cpu_.ramp_mask_;
     }
     cpu_.pc_++;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -972,7 +972,7 @@ unsigned int Device::executeNextInstruction()
     LOG_OPCODE("LD r{},-Z  @{:05X} = {:02X}", d, addr, regfile_[d]);
     cpu_.pc_++;
     opcode_cycles = 2;
-    if(addr >= mem_sram_start_) {
+    if(addr >= MEM_SRAM_START) {
       opcode_cycles++; // assume the same for internal and external SRAM
     }
   }
@@ -1551,7 +1551,7 @@ void Device::connectBlock(Block* block)
 
 void Device::setSP(uint16_t sp)
 {
-  if(sp >= mem_sram_start_ + mem_sram_start_) {
+  if(sp >= MEM_SRAM_START + MEM_SRAM_START) {
     //XXX exsram should be allowed
     logger->critical("invalid SP value (overflow): 0x{:02X}", sp);
   } else {
@@ -1572,14 +1572,14 @@ void Device::setPC(flashptr_t pc)
 
 uint8_t Device::getDataMem(memptr_t addr)
 {
-  if(addr < mem_io_size_) {
+  if(addr < MEM_IO_SIZE) {
     return Device::getIoMem(addr);
-  } else if(addr >= mem_eeprom_start_ && addr < mem_eeprom_start_+mem_eeprom_size_) {
+  } else if(addr >= MEM_EEPROM_START && addr < MEM_EEPROM_START+mem_eeprom_size_) {
     logger->warn("EEPROM read access not supported at 0x{:x}", addr);
     return 0; //TODO
-  } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
-    return sram_data_[addr-mem_sram_start_];
-  } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
+  } else if(addr >= MEM_SRAM_START && addr < MEM_SRAM_START+mem_sram_size_) {
+    return sram_data_[addr-MEM_SRAM_START];
+  } else if(addr >= MEM_EMULATOR_START && addr < MEM_EMULATOR_START+MEM_EMULATOR_SIZE) {
     return Device::getEmulatorMem(addr);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
     logger->warn("external SRAM read access not supported: 0x{:X}", addr);
@@ -1592,13 +1592,13 @@ uint8_t Device::getDataMem(memptr_t addr)
 
 void Device::setDataMem(memptr_t addr, uint8_t v)
 {
-  if(addr < mem_io_size_) {
+  if(addr < MEM_IO_SIZE) {
     Device::setIoMem(addr, v);
-  } else if(addr >= mem_eeprom_start_ && addr < mem_eeprom_start_+mem_eeprom_size_) {
+  } else if(addr >= MEM_EEPROM_START && addr < MEM_EEPROM_START+mem_eeprom_size_) {
     logger->warn("EEPROM write access not supported at 0x{:x}", addr);
-  } else if(addr >= mem_sram_start_ && addr < mem_sram_start_+mem_sram_size_) {
-    sram_data_[addr-mem_sram_start_] = v;
-  } else if(addr >= mem_emulator_start_ && addr < mem_emulator_start_+mem_emulator_size_) {
+  } else if(addr >= MEM_SRAM_START && addr < MEM_SRAM_START+mem_sram_size_) {
+    sram_data_[addr-MEM_SRAM_START] = v;
+  } else if(addr >= MEM_EMULATOR_START && addr < MEM_EMULATOR_START+MEM_EMULATOR_SIZE) {
     Device::setEmulatorMem(addr, v);
   } else if(mem_exsram_size_ && addr >= mem_exsram_start_ && addr < mem_exsram_start_+mem_exsram_size_) {
     logger->warn("external SRAM write access not supported at 0x{:x}", addr);
@@ -1629,7 +1629,7 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
 
 uint8_t Device::getEmulatorMem(memptr_t addr)
 {
-  uint16_t offset = addr - mem_emulator_start_;
+  uint16_t offset = addr - MEM_EMULATOR_START;
   switch(offset) {
     case 0x00: // clk_sys_tick_
     case 0x01:

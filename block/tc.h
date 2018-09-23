@@ -10,7 +10,7 @@ namespace block {
  */
 class TC: public Block
 {
-  static const ioptr_t IO_SIZE = 0x40;
+  static constexpr ioptr_t IO_SIZE = 0x40;
   enum {
     IV_OVF = 0,
     IV_ERR,
@@ -136,14 +136,14 @@ class TC: public Block
 
 
 namespace instances {
-  const Instance<TC> TCC0 = { "TCC0", 0x0800,  14 };
-  const Instance<TC> TCC1 = { "TCC1", 0x0840,  20 };
-  const Instance<TC> TCD0 = { "TCD0", 0x0900,  77 };
-  const Instance<TC> TCD1 = { "TCD1", 0x0940,  83 };
-  const Instance<TC> TCE0 = { "TCE0", 0x0A00,  47 };
-  const Instance<TC> TCE1 = { "TCE1", 0x0A40,  53 };
-  const Instance<TC> TCF0 = { "TCF0", 0x0B00, 108 };
-  const Instance<TC> TCF1 = { "TCF1", 0x0B40, 114 };
+  constexpr Instance<TC> TCC0 = { "TCC0", 0x0800,  14 };
+  constexpr Instance<TC> TCC1 = { "TCC1", 0x0840,  20 };
+  constexpr Instance<TC> TCD0 = { "TCD0", 0x0900,  77 };
+  constexpr Instance<TC> TCD1 = { "TCD1", 0x0940,  83 };
+  constexpr Instance<TC> TCE0 = { "TCE0", 0x0A00,  47 };
+  constexpr Instance<TC> TCE1 = { "TCE1", 0x0A40,  53 };
+  constexpr Instance<TC> TCF0 = { "TCF0", 0x0B00, 108 };
+  constexpr Instance<TC> TCF1 = { "TCF1", 0x0B40, 114 };
 }
 
 }

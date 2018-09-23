@@ -107,8 +107,8 @@ class Device
   unsigned int stepCPU();
 
   /// CCP state bitmask values
-  static const uint8_t CCP_IOREG = 0x1;
-  static const uint8_t CCP_SPM = 0x2;
+  static constexpr uint8_t CCP_IOREG = 0x1;
+  static constexpr uint8_t CCP_SPM = 0x2;
 
   /// Return CCP state as read in the I/O register
   uint8_t ccpState() const { return cpu_.ccpState(); }
@@ -196,7 +196,7 @@ class Device
 
  protected:
   // Memory map
-  static const memptr_t MEM_MAX_SIZE = 0x1000000;
+  static constexpr memptr_t MEM_MAX_SIZE = 0x1000000;
 
   /** @brief Connect a block to the device
    * @note This method does not take ownership of the block.
@@ -212,16 +212,16 @@ class Device
   const flashptr_t flash_boot_start_; // flash_size - flash_boot_size
   const flashptr_t flash_boot_size_; // flash_size - flash_app_size
 
-  const memptr_t mem_io_size_ = 0x1000;
-  const memptr_t mem_eeprom_start_ = 0x1000;
+  static constexpr memptr_t MEM_IO_SIZE = 0x1000;
+  static constexpr memptr_t MEM_EEPROM_START = 0x1000;
   const memptr_t mem_eeprom_size_;
-  const memptr_t mem_sram_start_ = 0x2000;
+  static constexpr memptr_t MEM_SRAM_START = 0x2000;
   const memptr_t mem_sram_size_;
   const memptr_t mem_exsram_start_;
   const memptr_t mem_exsram_size_; // 0 if no external SRAM
   // For now, no XMEGA device has SRAM in this range
-  const memptr_t mem_emulator_start_ = 0xFF00;
-  const memptr_t mem_emulator_size_ = 0x100;
+  static constexpr memptr_t MEM_EMULATOR_START = 0xFF00;
+  static constexpr memptr_t MEM_EMULATOR_SIZE = 0x100;
 
   ConfTree& conf_;
 
@@ -242,7 +242,7 @@ class Device
    * @note Since C++11, vector data is ensured to be stored sequentially. Thus
    * we can safely take and return the address for later write use.
    */
-  uint8_t* stack() { return &sram_data_[cpu_.sp_-mem_sram_start_]; }
+  uint8_t* stack() { return &sram_data_[cpu_.sp_-MEM_SRAM_START]; }
 
 
   /// Flash data

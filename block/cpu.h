@@ -13,7 +13,7 @@ namespace block {
 class CPU: public Block
 {
   friend class ::Device;
-  static const ioptr_t IO_SIZE = 16;
+  static constexpr ioptr_t IO_SIZE = 16;
 
  public:
   CPU(Device& dev);
