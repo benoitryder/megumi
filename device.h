@@ -4,7 +4,6 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#include <map>
 #include <vector>
 #include <array>
 #include <set>
@@ -223,20 +222,18 @@ class Device
   static constexpr memptr_t MEM_EMULATOR_START = 0xFF00;
   static constexpr memptr_t MEM_EMULATOR_SIZE = 0x100;
 
+  // For now, all XMEGA devices have at most 128 IVs
+  static constexpr ivnum_t IV_MAX_COUNT = 0x80;
+
   ConfTree& conf_;
 
-  typedef std::map<ioptr_t, Block*> BlockContainer;
-  /// Map of blocks indexed by I/O memory address
-  BlockContainer blocks_;
+  /// List of blocks
+  std::vector<Block*> blocks_;
 
-  typedef std::map<ivnum_t, Block*> IvBlockContainer;
-  /// Map of blocks indexed by IV base
-  IvBlockContainer iv_blocks_;
-
-  /// Return block handling a given I/O address, or \e nullptr
-  Block* getBlock(ioptr_t addr);
-  /// Return block handling a given IV, or \e nullptr
-  Block* getIvBlock(ivnum_t iv);
+  /// Map I/O addresses to blocks
+  std::array<Block*, MEM_IO_SIZE> io_blocks_ = {};
+  /// Map IV to blocks
+  std::array<Block*, IV_MAX_COUNT> iv_blocks_ = {};
 
   /** @brief Return a pointer to the stack data
    * @note Since C++11, vector data is ensured to be stored sequentially. Thus

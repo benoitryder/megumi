@@ -13,7 +13,7 @@ typedef uint_fast16_t ioptr_t;
 /// Type to store flash memory offset
 typedef uint_fast32_t flashptr_t;
 /// Interrupt vector number
-typedef uint_fast16_t ivnum_t;
+typedef uint_fast8_t ivnum_t;
 
 
 /** @brief Interrupt levels

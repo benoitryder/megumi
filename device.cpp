@@ -87,8 +87,8 @@ void Device::reset()
   schedule(ClockType::CPU, std::bind(&Device::stepCPU, this), 1, 100);
 
   // reset blocks
-  for(auto it: blocks_) {
-    it.second->reset();
+  for(auto block: blocks_) {
+    block->reset();
   }
 
   // clear memory
@@ -267,7 +267,7 @@ bool Device::processPendingInterrupts()
     iv_addr += flash_boot_start_;
   }
   // execute the IV
-  Block* block = getIvBlock(iv_num);
+  Block* block = iv_blocks_[iv_num];
   assert(block);
   block->executeIv(iv_num-block->iv_base());
   if(flash_size_ <= 0x20000) {
@@ -1492,59 +1492,33 @@ unsigned int Device::executeNextInstruction()
 }
 
 
-
-Block* Device::getBlock(ioptr_t addr)
-{
-  for(auto it=blocks_.rbegin(); it!=blocks_.rend(); ++it) {
-    if(it->first <= addr) {
-      Block* block = it->second;
-      if(addr - block->io_addr() < block->io_size()) {
-        return block;
-      } else {
-        return nullptr;
-      }
-    }
-  }
-  return nullptr;
-}
-
-Block* Device::getIvBlock(ivnum_t iv)
-{
-  for(auto it=iv_blocks_.rbegin(); it!=iv_blocks_.rend(); ++it) {
-    if(it->first <= iv) {
-      Block* block = it->second;
-      if(iv - block->iv_base() < block->iv_count()) {
-        return block;
-      } else {
-        return nullptr;
-      }
-    }
-  }
-  return nullptr;
-}
-
-
 void Device::connectBlock(Block* block)
 {
-  ioptr_t io_start = block->io_addr();
-  ioptr_t io_end = io_start + block->io_size();
-  ivnum_t iv_start = block->iv_base();
-  ivnum_t iv_end = iv_start + block->iv_count();
   logger->info("connecting block {}", block->name());
-  for(const auto it: blocks_) {
-    const Block* block2 = it.second;
-    if(io_start >= block2->io_addr() && io_end <= block2->io_addr() + block2->io_size()) {
-      throw BlockError(*block, "I/O memory space overlaps with block "+block2->name());
+
+  if(block->io_addr() + block->io_size() > MEM_IO_SIZE) {
+    throw BlockError(*block, "I/O memory out of range");
+  }
+  for(auto addr = block->io_addr(); addr < block->io_addr() + block->io_size(); ++addr) {
+    if(io_blocks_[addr]) {
+      throw BlockError(*block, "I/O memory space overlaps with block " + io_blocks_[addr]->name());
     }
-    if(iv_start != 0 && iv_start >= block2->iv_base() && iv_end <= block2->iv_base() + block2->iv_count()) {
-      throw BlockError(*block, "interrupt vectors overlap with block "+block2->name());
+    io_blocks_[addr] = block;
+  }
+
+  if(block->iv_base()) {
+    if(block->iv_base() + block->iv_count() > IV_MAX_COUNT) {
+      throw BlockError(*block, "IVs out of range");
+    }
+    for(auto iv = block->iv_base(); iv < block->iv_base() + block->iv_count(); ++iv) {
+      if(iv_blocks_[iv]) {
+        throw BlockError(*block, "interrupt vectors overlap with block " + iv_blocks_[iv]->name());
+      }
+      iv_blocks_[iv] = block;
     }
   }
 
-  blocks_[io_start] = block;
-  if(iv_start != iv_end) {
-    iv_blocks_[iv_start] = block;
-  }
+  blocks_.push_back(block);
 }
 
 
@@ -1609,7 +1583,7 @@ void Device::setDataMem(memptr_t addr, uint8_t v)
 
 uint8_t Device::getIoMem(ioptr_t addr)
 {
-  Block* block = getBlock(addr);
+  Block* block = io_blocks_[addr];
   if(block == NULL) {
     logger->error("invalid I/O address to read: 0x{:X} (no block)", addr);
     return 0;
@@ -1619,7 +1593,7 @@ uint8_t Device::getIoMem(ioptr_t addr)
 
 void Device::setIoMem(ioptr_t addr, uint8_t v)
 {
-  Block* block = getBlock(addr);
+  Block* block = io_blocks_[addr];
   if(block == NULL) {
     logger->error("invalid I/O address to write: 0x{:X} (no block)", addr);
     return;
