@@ -65,7 +65,7 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path):
 {
   HANDLE h = CreateFile(path.c_str(), GENERIC_READ|GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
   if(h == INVALID_HANDLE_VALUE) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": failed to open link file "+path);
   }
   h_in_ = h_out_ = h;
@@ -81,7 +81,7 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, con
   if(!path_in.empty()) {
     h_in_ = CreateFile(path_in.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
     if(h_in_ == INVALID_HANDLE_VALUE) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       throw win32_error(error, usart_.name()+": failed to open link input file "+path_in);
     }
   }
@@ -89,7 +89,7 @@ USARTLinkFile::USARTLinkFile(const USART& usart, const std::string& path_in, con
   if(!path_out.empty()) {
     h_out_ = CreateFile(path_out.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED, nullptr);
     if(h_out_ == INVALID_HANDLE_VALUE) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       throw win32_error(error, usart_.name()+": failed to open link output file "+path_out);
     }
   }
@@ -104,7 +104,7 @@ void USARTLinkFile::initHandles()
     state_read_.o.OffsetHigh = 0;
     state_read_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
     if(!state_read_.o.hEvent) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       throw win32_error(error, usart_.name()+": CreateEvent() failed");
     }
   }
@@ -113,7 +113,7 @@ void USARTLinkFile::initHandles()
     state_write_.o.OffsetHigh = 0xFFFFFFFF;
     state_write_.o.hEvent = CreateEvent(nullptr, true, false, nullptr);
     if(!state_write_.o.hEvent) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       throw win32_error(error, usart_.name()+": CreateEvent() failed");
     }
   }
@@ -143,7 +143,7 @@ int USARTLinkFile::recv()
   if(!state_read_.waiting) {
     ResetEvent(state_read_.o.hEvent);
     if(!ReadFile(h_in_, &state_read_.data, 1, nullptr, &state_read_.o)) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": read error");
       }
@@ -155,7 +155,7 @@ int USARTLinkFile::recv()
   } else {
     DWORD count;
     if(!GetOverlappedResult(h_in_, &state_read_.o, &count, false)) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw win32_error(error, usart_.name()+": read error");
       }
@@ -177,7 +177,7 @@ bool USARTLinkFile::send(uint16_t v)
     ResetEvent(state_write_.o.hEvent);
     state_write_.data = v;
     if(!WriteFile(h_out_, &state_write_.data, 1, nullptr, &state_write_.o)) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING) {
         throw win32_error(error, usart_.name()+": write error");
       }
@@ -189,7 +189,7 @@ bool USARTLinkFile::send(uint16_t v)
   } else {
     DWORD dummy = 0;
     if(!GetOverlappedResult(h_out_, &state_write_.o, &dummy, false)) {
-      DWORD error = GetLastError();
+      const DWORD error = GetLastError();
       if(error != ERROR_IO_PENDING && error != ERROR_IO_INCOMPLETE) {
         throw win32_error(error, usart_.name()+": write error");
       }
@@ -215,7 +215,7 @@ void USARTLinkSerial::configure()
 {
   DCB dcb = {0};
   if(!GetCommState(h_in_, &dcb)) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": GetCommState() failed");
   }
 
@@ -237,7 +237,7 @@ void USARTLinkSerial::configure()
   }
   dcb.StopBits = usart_.stopbits() == 1 ? ONESTOPBIT : TWOSTOPBITS;
   if(!SetCommState(h_in_, &dcb)) {
-    DWORD error = GetLastError();
+    const DWORD error = GetLastError();
     throw win32_error(error, usart_.name()+": SetCommState() failed");
   }
 }
@@ -628,7 +628,7 @@ void USART::reset()
 
 unsigned int USART::step()
 {
-  unsigned int sys_tick = device_.clk_sys_tick();
+  const unsigned int sys_tick = device_.clk_sys_tick();
   if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
     int v = link_->recv();
     if(v >= 0) {
@@ -647,7 +647,7 @@ unsigned int USART::step()
   }
   if(ctrlb_.txen) {
     if(!status_.dreif && sys_tick >= next_send_tick_) {
-      uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
+      const uint16_t v = (txb_ | (ctrlb_.txb8 << 8)) & ((1 << databits())-1);
       if(link_->send(v)) {
         next_send_tick_ = sys_tick + frame_sys_ticks_ * device_.getClockScale(ClockType::PER);
         logger_->debug("send {:02X}", v);
