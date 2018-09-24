@@ -1,11 +1,12 @@
 CXX = g++
-CPPFLAGS += -g -Wall -Wextra -Werror
+CPPFLAGS += -Wall -Wextra -Werror
 # sadly, it does warn about designated initializers
 # (despite what is stated in docs)
 CPPFLAGS += -Wno-missing-field-initializers
 #CPPFLAGS += -DSPDLOG_FMT_EXTERNAL
-CXXFLAGS += -std=c++17 -O3 -flto -fPIC
+CXXFLAGS += -std=c++17 -O3 -flto
 LDFLAGS += -lboost_program_options$(BOOST_SUFFIX) -lfmt
+DISABLE_LIB ?=
 
 NAME = megumi
 SRCS = $(wildcard $(addsuffix /*.cpp,. model block))
@@ -29,8 +30,15 @@ CPPFLAGS += -I$(PREFIX)/include
 LDFLAGS += -L$(PREFIX)/lib
 endif
 
-TARGET_LIB = $(NAME)$(LIB_EXT)
 TARGET_EXE = $(NAME)$(EXE_EXT)
+ifeq ($(DISABLE_LIB),)
+TARGET_LIB = $(NAME)$(LIB_EXT)
+TARGET_EXE_OBJS = $(TARGET_LIB)
+CXXFLAGS += -fPIC
+else
+TARGET_LIBS =
+TARGET_EXE_OBJS = $(LIB_OBJS)
+endif
 
 .PHONY: default all clean
 
@@ -40,11 +48,13 @@ all: $(TARGET_LIB) $(TARGET_EXE)
 
 -include $(OBJS:.o=.d)
 
-$(TARGET_EXE): $(TARGET_LIB) main.o
-	$(CXX) main.o $(TARGET_LIB) -o $@ $(LDFLAGS) $(EXE_LDFLAGS)
+$(TARGET_EXE): $(TARGET_EXE_OBJS) main.o
+	$(CXX) main.o $(TARGET_EXE_OBJS) -o $@ $(LDFLAGS) $(EXE_LDFLAGS)
 
+ifeq ($(DISABLE_LIB),)
 $(TARGET_LIB): $(LIB_OBJS)
 	$(CXX) $(LIB_OBJS) -o $@ -shared $(LDFLAGS) $(LIB_LDFLAGS)
+endif
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -c $< -o $@
