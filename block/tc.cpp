@@ -140,7 +140,7 @@ void TC::setIo(ioptr_t addr, uint8_t v)
         device_.unschedule(step_event_);
         step_event_ = nullptr;
       } else if(prescaler_ && !step_event_) {
-        step_event_ = device_.schedule(ClockType::PER, std::bind(&TC::step, this), prescaler_);
+        step_event_ = device_.schedule(ClockType::PER, [&]() { return step(); }, prescaler_);
       }
     }
   } else if(addr == 0x01) { // CTRLB

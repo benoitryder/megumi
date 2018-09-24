@@ -84,7 +84,7 @@ void Device::reset()
 
   // reset CLK first for schedule()
   clk_.reset();
-  schedule(ClockType::CPU, std::bind(&Device::stepCPU, this), 1, 100);
+  schedule(ClockType::CPU, [&]() { return stepCPU(); }, 1, 100);
 
   // reset blocks
   for(auto block: blocks_) {

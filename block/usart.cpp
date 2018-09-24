@@ -553,7 +553,7 @@ void USART::setIo(ioptr_t addr, uint8_t v)
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
-        step_event_ = device_.schedule(ClockType::PER, std::bind(&USART::step, this));
+        step_event_ = device_.schedule(ClockType::PER, [&]() { return step(); });
       }
     }
   } else if(addr == 0x05) { // CTRLC

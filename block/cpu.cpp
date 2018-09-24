@@ -85,7 +85,7 @@ void CPU::reset()
   sp_ = device_.mem_exsram_start_-1;
   sreg_.data = 0;
   pc_ = 0; //TODO may start on bootloader
-  device_.schedule(ClockType::PER, std::bind(&CPU::step, this));
+  device_.schedule(ClockType::PER, [&]() { return step(); });
 }
 
 unsigned int CPU::step()
