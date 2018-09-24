@@ -79,11 +79,13 @@ void Device::reset()
   instruction_cycles_ = 0;
   interrupt_wait_instruction_ = true;
   clk_sys_tick_ = 0;
-  clk_sys_queue_.clear();
+  clk_sys_events_.clear();
 
   // reset CLK first for schedule()
   clk_.reset();
-  schedule(ClockType::CPU, [&]() { return stepCPU(); }, 1, 100);
+  // CPU step MUST be executed first
+  assert(clk_sys_events_.empty());
+  schedule(ClockType::CPU, [&]() { return stepCPU(); });
 
   // reset blocks
   for(auto block: blocks_) {
@@ -98,21 +100,29 @@ void Device::reset()
 
 void Device::step()
 {
-  assert(!clk_sys_queue_.empty());
-  clk_sys_tick_ = clk_sys_queue_.front()->tick;
-
-  while(clk_sys_queue_.front()->tick <= clk_sys_tick_) {
-    auto ev = std::move(clk_sys_queue_.front());
-    clk_sys_queue_.erase(clk_sys_queue_.begin());
-    unsigned int next = ev->callback();
-    if(next) {
-      ev->tick += next * ev->scale;
-      auto it = clk_sys_queue_.begin();
-      while(it != clk_sys_queue_.end() && *ev < *it->get()) {
-        ++it;
-      }
-      clk_sys_queue_.insert(it, std::move(ev));
+  // When an event is unscheduled, it is removed from clk_sys_events_ and a
+  // "large" part of the vector can be copied. However, after some time, events
+  // likely to be unscheduled will be "pushed" to the end of the vector and
+  // such, faster to be removed.
+  ++clk_sys_tick_;
+  // don't use iterator since callbacks can schedule new events
+  for(size_t i = 0; i < clk_sys_events_.size(); ) {
+    if(!clk_sys_events_[i]) {
+      // event unscheduled using unschedule()
+      clk_sys_events_.erase(clk_sys_events_.begin() + i);
+      continue;
     }
+    auto& ev = *clk_sys_events_[i];
+    if(ev.tick <= clk_sys_tick_) {
+      const unsigned int next = ev.callback();
+      if(next) {
+        ev.tick += next * ev.scale;
+      } else {
+        clk_sys_events_.erase(clk_sys_events_.begin() + i);
+        continue;  // don't iterate
+      }
+    }
+    ++i;
   }
 }
 
@@ -1619,24 +1629,21 @@ void Device::setEmulatorMem(memptr_t addr, uint8_t)
 }
 
 
-const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks, unsigned int priority)
+const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks)
 {
   assert(cb);
   unsigned int scale = getClockScale(clock);
-  ClockEvent* ev = new ClockEvent{ clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale };
-  auto it = clk_sys_queue_.begin();
-  while(it != clk_sys_queue_.end() && *ev < *it->get()) {
-    ++it;
-  }
-  clk_sys_queue_.emplace(it, ev);
-  return ev;
+  clk_sys_events_.push_back(std::make_unique<ClockEvent>(clock, cb, (clk_sys_tick_/scale+ticks) * scale, scale));
+  return clk_sys_events_.rbegin()->get();
 }
 
 void Device::unschedule(const ClockEvent* ev)
 {
-  for(auto it=clk_sys_queue_.begin(); it!=clk_sys_queue_.end(); ++it) {
+  // clear the element, null ptr will be reset on next step() loop
+  //TODO check if events can be unscheduled by CPU on their due tick
+  for(auto it=clk_sys_events_.begin(); it!=clk_sys_events_.end(); ++it) {
     if(it->get() == ev) {
-      clk_sys_queue_.erase(it);
+      it->reset();
       return;
     }
   }
@@ -1646,7 +1653,7 @@ void Device::unschedule(const ClockEvent* ev)
 
 void Device::onClockConfigChange()
 {
-  for(auto& ev: clk_sys_queue_) {
+  for(auto& ev: clk_sys_events_) {
     unsigned int scale = getClockScale(ev->clock);
     if(ev->scale == scale) {
       continue; // nothing to do
@@ -1657,8 +1664,6 @@ void Device::onClockConfigChange()
     ev->tick = clk_sys_tick_ + dt * scale;
     ev->scale = scale;
   }
-
-  std::sort(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
 }
 
 

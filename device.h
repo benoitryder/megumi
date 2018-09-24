@@ -36,23 +36,12 @@ typedef std::function<unsigned int()> ClockCallback;
 
 /// Clock event object
 struct ClockEvent {
+  ClockEvent(ClockType clock, ClockCallback callback, unsigned int tick, unsigned int scale):
+      clock(clock), callback(callback), tick(tick), scale(scale) {}
   ClockType clock; ///< Clock the event is scheduled for
   ClockCallback callback;  ///< Event callback
-  /** @brief Execution priority
-   *
-   * Event with lowest priority is executed first.
-   * The following typical priorities are used:
-   *  - 10: default peripheral handling
-   *  - 100: CPU instructions
-   */
-  unsigned int priority;
   unsigned int tick;  ///< Due tick
   unsigned int scale;  ///< Internal ticks per clock ticks
-
-  /// Operator for ClockQueue sorting, lower events are executed later
-  bool operator<(const ClockEvent& o) const {
-    return tick > o.tick || (tick == o.tick && priority < o.priority);
-  }
 };
 
 
@@ -94,8 +83,7 @@ class Device
 
   /** @brief Advance the SYS clock, process clock events
    *
-   * The SYS clock is advanced to the tick of the next event.
-   * All events for this tick are executed.
+   * The SYS clock is incremeented and all events for this tick are executed.
    *
    * @note There should always be at least one scheduled event (for CPU
    * instructions).
@@ -165,10 +153,8 @@ class Device
    * @param ticks  ticks before the first execution
    * @param priority  event priority
    * @return The created event.
-   *
-   * @warning The callback must not schedule new events.
    */
-  const ClockEvent* schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1, unsigned int priority=10);
+  const ClockEvent* schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1);
   /// Unschedule an event
   void unschedule(const ClockEvent* ev);
 
@@ -292,19 +278,8 @@ class Device
   /// Current SYS tick
   unsigned int clk_sys_tick_;
 
-  /** @brief Clock event queue
-   *
-   * The vector behave as a priority queue with the help of \c std::*_heap
-   * functions.
-   */
-  typedef std::vector<std::unique_ptr<ClockEvent>> ClockQueue;
   /// Events scheduled on the SYS clock or derived clocks
-  ClockQueue clk_sys_queue_;
-  /// Compare function for ClockQueue (pointer) elements
-  static bool clock_queue_cmp(const ClockQueue::value_type& a, const ClockQueue::value_type& b) {
-    return *a < *b;
-  }
-
+  std::vector<std::unique_ptr<ClockEvent>> clk_sys_events_;
 
   // blocks
   block::CPU cpu_;
