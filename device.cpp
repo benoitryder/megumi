@@ -1,5 +1,4 @@
 #include <cassert>
-#include <algorithm>
 #include <climits>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/exceptions.hpp>
@@ -102,19 +101,17 @@ void Device::step()
   assert(!clk_sys_queue_.empty());
   clk_sys_tick_ = clk_sys_queue_.front()->tick;
 
-  for(;;) {
-    ClockEvent* ev = clk_sys_queue_.front().get();
-    if(ev->tick > clk_sys_tick_) {
-      break;
-    }
+  while(clk_sys_queue_.front()->tick <= clk_sys_tick_) {
+    auto ev = std::move(clk_sys_queue_.front());
+    clk_sys_queue_.erase(clk_sys_queue_.begin());
     unsigned int next = ev->callback();
     if(next) {
       ev->tick += next * ev->scale;
-      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
-      std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
-    } else {
-      std::pop_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
-      clk_sys_queue_.pop_back();
+      auto it = clk_sys_queue_.begin();
+      while(it != clk_sys_queue_.end() && *ev < *it->get()) {
+        ++it;
+      }
+      clk_sys_queue_.insert(it, std::move(ev));
     }
   }
 }
@@ -1627,8 +1624,11 @@ const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned i
   assert(cb);
   unsigned int scale = getClockScale(clock);
   ClockEvent* ev = new ClockEvent{ clock, cb, priority, (clk_sys_tick_/scale+ticks) * scale, scale };
-  clk_sys_queue_.emplace_back(ev);
-  std::push_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
+  auto it = clk_sys_queue_.begin();
+  while(it != clk_sys_queue_.end() && *ev < *it->get()) {
+    ++it;
+  }
+  clk_sys_queue_.emplace(it, ev);
   return ev;
 }
 
@@ -1637,7 +1637,6 @@ void Device::unschedule(const ClockEvent* ev)
   for(auto it=clk_sys_queue_.begin(); it!=clk_sys_queue_.end(); ++it) {
     if(it->get() == ev) {
       clk_sys_queue_.erase(it);
-      std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
       return;
     }
   }
@@ -1658,7 +1657,8 @@ void Device::onClockConfigChange()
     ev->tick = clk_sys_tick_ + dt * scale;
     ev->scale = scale;
   }
-  std::make_heap(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
+
+  std::sort(clk_sys_queue_.begin(), clk_sys_queue_.end(), clock_queue_cmp);
 }
 
 
