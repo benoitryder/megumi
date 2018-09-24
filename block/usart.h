@@ -14,7 +14,7 @@ class USARTLink
 {
  public:
   USARTLink(const USART& usart);
-  virtual ~USARTLink();
+  virtual ~USARTLink() = default;
   /// Reconfigure the link
   virtual void configure() = 0;
   /// Receive a single byte, return -1 if there is nothing to read
@@ -64,7 +64,7 @@ class USART: public Block
 
  public:
   USART(Device& dev, const Instance<USART>& instance);
-  virtual ~USART();
+  virtual ~USART() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
   ivnum_t iv_count() const override { return IV_COUNT; }

@@ -19,10 +19,10 @@ class ClockEvent;
 class Block
 {
  public:
-  typedef boost::property_tree::ptree ConfTree;
+  using ConfTree = boost::property_tree::ptree;
 
   Block(Device& device_, const std::string& name, ioptr_t io_addr, ivnum_t iv_base=0);
-  virtual ~Block();
+  virtual ~Block() = default;
 
   const std::string& name() const { return name_; }
   ioptr_t io_addr() const { return io_addr_; }

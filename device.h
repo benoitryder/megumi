@@ -32,7 +32,7 @@ enum class ClockType {
  * The callback return the number of tick before the next execution, or 0 to
  * not reexecute the callback.
  */
-typedef std::function<unsigned int()> ClockCallback;
+using ClockCallback = std::function<unsigned int()>;
 
 /// Clock event object
 struct ClockEvent {
@@ -62,10 +62,10 @@ class Device
     bool has_exsram;
   };
   /// User configuration tree
-  typedef boost::property_tree::ptree ConfTree;
+  using ConfTree = boost::property_tree::ptree;
 
-  typedef std::array<uint8_t, 32> RegFile;
-  typedef block::CPU::SREG SREG;
+  using RegFile = std::array<uint8_t, 32>;
+  using SREG = block::CPU::SREG;
 
   /// Initialize constant members, connect blocks
   Device(const ModelConf& model, ConfTree& conf);
@@ -255,7 +255,7 @@ class Device
   bool interrupt_wait_instruction_;
 
   /// Interrupt queue
-  typedef std::set<ivnum_t> InterruptQueue;
+  using InterruptQueue = std::set<ivnum_t>;
 
   /** @brief Pending interrupts
    *

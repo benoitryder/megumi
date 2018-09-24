@@ -23,7 +23,7 @@ class TC: public Block
 
  public:
   TC(Device& dev, const Instance<TC>& instance);
-  virtual ~TC();
+  virtual ~TC() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
   ivnum_t iv_count() const override { return type_ == 0 ? IV_COUNT : IV_CCC; }

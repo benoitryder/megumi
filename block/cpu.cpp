@@ -13,10 +13,6 @@ CPU::CPU(Device& dev):
 {
 }
 
-CPU::~CPU()
-{
-}
-
 
 uint8_t CPU::getIo(ioptr_t addr)
 {

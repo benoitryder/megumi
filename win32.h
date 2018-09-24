@@ -21,9 +21,9 @@ class win32_error: public std::exception
   win32_error(DWORD code, const std::string& msg) noexcept:
       code_(code), msg_(msg+": "+error_code_to_string(code)) {}
 
-  virtual ~win32_error() noexcept (true) {}
+  virtual ~win32_error() {}
   DWORD code() const noexcept { return code_; }
-  virtual const char* what() const noexcept { return msg_.c_str(); }
+  const char* what() const noexcept override { return msg_.c_str(); }
 
  private:
   static std::string error_code_to_string(DWORD code)

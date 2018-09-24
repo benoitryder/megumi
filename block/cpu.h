@@ -17,7 +17,7 @@ class CPU: public Block
 
  public:
   CPU(Device& dev);
-  virtual ~CPU();
+  virtual ~CPU() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
 

@@ -11,10 +11,6 @@ PMIC::PMIC(Device& dev):
 {
 }
 
-PMIC::~PMIC()
-{
-}
-
 
 uint8_t PMIC::getIo(ioptr_t addr)
 {

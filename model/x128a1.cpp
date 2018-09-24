@@ -72,10 +72,6 @@ ATxmega128A1::ATxmega128A1(ConfTree& conf):
   connectBlock(&tcF1_);
 }
 
-ATxmega128A1::~ATxmega128A1()
-{
-}
-
 
 }
 

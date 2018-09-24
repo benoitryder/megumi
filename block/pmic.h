@@ -15,7 +15,7 @@ class PMIC: public Block
 
  public:
   PMIC(Device& dev);
-  virtual ~PMIC();
+  virtual ~PMIC() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
 

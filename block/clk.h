@@ -16,7 +16,7 @@ class CLK: public Block
 
  public:
   CLK(Device& dev, const OSC& osc);
-  virtual ~CLK();
+  virtual ~CLK() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
 

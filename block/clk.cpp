@@ -11,10 +11,6 @@ CLK::CLK(Device& dev, const OSC& osc):
 {
 }
 
-CLK::~CLK()
-{
-}
-
 
 uint8_t CLK::getIo(ioptr_t addr)
 {

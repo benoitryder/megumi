@@ -7,13 +7,13 @@
 
 
 /// Type to store data memory offset
-typedef uint_fast32_t memptr_t;
+using memptr_t = uint_fast32_t;
 /// Type to store I/O memory offset
-typedef uint_fast16_t ioptr_t;
+using ioptr_t = uint_fast16_t;
 /// Type to store flash memory offset
-typedef uint_fast32_t flashptr_t;
+using flashptr_t = uint_fast32_t;
 /// Interrupt vector number
-typedef uint_fast8_t ivnum_t;
+using ivnum_t = uint_fast8_t;
 
 
 /** @brief Interrupt levels
@@ -31,10 +31,10 @@ enum IntLvl {
 
 /// Map bit size to an appropriated unsigned integer type
 template <unsigned N> class nbits_to_utype;
-template <> struct nbits_to_utype<8> { typedef uint8_t type; };
-template <> struct nbits_to_utype<16> { typedef uint16_t type; };
-template <> struct nbits_to_utype<24> { typedef uint32_t type; };
-template <> struct nbits_to_utype<32> { typedef uint32_t type; };
+template <> struct nbits_to_utype<8> { using type = uint8_t; };
+template <> struct nbits_to_utype<16> { using type = uint16_t; };
+template <> struct nbits_to_utype<24> { using type = uint32_t; };
+template <> struct nbits_to_utype<32> { using type = uint32_t; };
 
 /// Read a multibyte little-endian value from an 8-bit array-compatible type
 template <unsigned N> typename nbits_to_utype<N>::type register_get(const uint8_t* p);
@@ -72,7 +72,7 @@ class Register
   static_assert(N % 8 == 0, "invalid bit count");
   uint8_t data_[N/8];
  public:
-  typedef typename nbits_to_utype<N>::type value_type;
+  using value_type = typename nbits_to_utype<N>::type;
   Register& operator=(value_type v) { register_set<N>(data_, v); return *this; }
   operator value_type() const { return register_get<N>(data_); }
   Register& operator++() { register_set<N>(data_, register_get<N>(data_)+1); return *this; }

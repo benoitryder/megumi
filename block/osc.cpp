@@ -10,10 +10,6 @@ OSC::OSC(Device& dev):
 {
 }
 
-OSC::~OSC()
-{
-}
-
 
 uint8_t OSC::getIo(ioptr_t addr)
 {

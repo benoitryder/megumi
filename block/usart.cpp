@@ -18,7 +18,6 @@ namespace block {
 USARTLink::USARTLink(const USART& usart):
     usart_(usart)
 {}
-USARTLink::~USARTLink() {}
 
 
 /// Dummy USART link
@@ -26,10 +25,10 @@ class USARTLinkDummy: public USARTLink
 {
  public:
   USARTLinkDummy(const USART& usart): USARTLink(usart) {}
-  virtual ~USARTLinkDummy() {}
-  virtual void configure() {}
-  virtual int recv() { return -1; }
-  virtual bool send(uint16_t) { return true; }
+  virtual ~USARTLinkDummy() = default;
+  void configure() override {}
+  int recv() override { return -1; }
+  bool send(uint16_t) override { return true; }
 };
 
 
@@ -42,9 +41,9 @@ class USARTLinkFile: public USARTLink
   USARTLinkFile(const USART& usart, const std::string& path);
   USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out);
   virtual ~USARTLinkFile();
-  virtual void configure() {}
-  virtual int recv();
-  virtual bool send(uint16_t v);
+  void configure() override {}
+  int recv() override;
+  bool send(uint16_t v) override;
  protected:
   void initHandles();
 
@@ -208,7 +207,7 @@ class USARTLinkSerial: public USARTLinkFile
  public:
   USARTLinkSerial(const USART& usart, const std::string& path):
       USARTLinkFile(usart, path) {}
-  virtual void configure();
+  void configure() override;
 };
 
 void USARTLinkSerial::configure()
@@ -252,9 +251,9 @@ class USARTLinkFile: public USARTLink
   USARTLinkFile(const USART& usart, const std::string& path);
   USARTLinkFile(const USART& usart, const std::string& path_in, const std::string& path_out);
   virtual ~USARTLinkFile();
-  virtual void configure() {}
-  virtual int recv();
-  virtual bool send(uint16_t v);
+  void configure() override {}
+  int recv() override;
+  bool send(uint16_t v) override;
  protected:
   int fd_in_;
   int fd_out_;
@@ -335,7 +334,7 @@ class USARTLinkSerial: public USARTLinkFile
 {
  public:
   USARTLinkSerial(const USART& usart, const std::string& path);
-  virtual void configure();
+  void configure() override;
 };
 
 USARTLinkSerial::USARTLinkSerial(const USART& usart, const std::string& path):
@@ -487,10 +486,6 @@ USART::USART(Device& dev, const Instance<USART>& instance):
   } else {
     throw std::runtime_error(name() + ": invalid link_type value");
   }
-}
-
-USART::~USART()
-{
 }
 
 

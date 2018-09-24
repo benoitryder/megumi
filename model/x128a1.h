@@ -14,7 +14,7 @@ class ATxmega128A1: public Device
 
  public:
   ATxmega128A1(ConfTree& conf);
-  virtual ~ATxmega128A1();
+  virtual ~ATxmega128A1() = default;
 
   const char* model_name() const override { return "ATxmega128A1"; }
 

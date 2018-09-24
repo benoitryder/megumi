@@ -9,10 +9,6 @@ GPIOR::GPIOR(Device& dev):
 {
 }
 
-GPIOR::~GPIOR()
-{
-}
-
 
 uint8_t GPIOR::getIo(ioptr_t addr)
 {

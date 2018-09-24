@@ -11,10 +11,6 @@ Block::Block(Device& dev, const std::string& name, ioptr_t io_addr, ivnum_t iv_b
   }
 }
 
-Block::~Block()
-{
-}
-
 
 void Block::setIvLvl(ivnum_t iv, IntLvl lvl) const
 {

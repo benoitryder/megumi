@@ -17,10 +17,6 @@ TC::TC(Device& dev, const Instance<TC>& instance):
   }
 }
 
-TC::~TC()
-{
-}
-
 
 uint8_t TC::getIo(ioptr_t addr)
 {

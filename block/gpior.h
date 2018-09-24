@@ -15,7 +15,7 @@ class GPIOR: public Block
 
  public:
   GPIOR(Device& dev);
-  virtual ~GPIOR();
+  virtual ~GPIOR() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
 

@@ -17,7 +17,7 @@ class OSC: public Block
 
  public:
   OSC(Device& dev);
-  virtual ~OSC();
+  virtual ~OSC() = default;
 
   ioptr_t io_size() const override { return IO_SIZE; }
   ivnum_t iv_count() const override { return IV_COUNT; }

@@ -10,10 +10,6 @@ Port::Port(Device& dev, const Instance<Port>& instance):
 {
 }
 
-Port::~Port()
-{
-}
-
 
 uint8_t Port::getIo(ioptr_t addr)
 {

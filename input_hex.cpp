@@ -1,7 +1,6 @@
 #include <fstream>
-#include <iostream>
-#include <sstream>
 #include <exception>
+#include <fmt/format.h>
 #include "input_hex.h"
 
 
@@ -13,12 +12,10 @@ class hex_parsing_error: public std::exception
   {
   }
 
-  virtual const char* what() const throw()
+  const char* what() const noexcept override
   {
     if(what_.empty()) {
-      std::ostringstream ss;
-      ss << "line " << lineno_ << ": " << msg_;
-      what_ = ss.str();
+      what_ = fmt::format("line {}:{}", lineno_, msg_);
     }
     return what_.c_str();
   }
