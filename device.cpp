@@ -1281,7 +1281,7 @@ unsigned int Device::executeNextInstruction()
         opcode_cycles = 3;
       } else {
         cpu_.pc_ += 2;
-        opcode_cycles = 3;
+        opcode_cycles = 2;
       }
     } else {
       cpu_.pc_++;
