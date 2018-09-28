@@ -3,6 +3,8 @@
 
 #include "../block.h"
 
+struct OpcodeDetail;
+
 namespace block {
 
 
@@ -13,6 +15,7 @@ namespace block {
 class CPU: public Block
 {
   friend class ::Device;
+  friend struct ::OpcodeDetail;
   static constexpr ioptr_t IO_SIZE = 16;
 
  public:

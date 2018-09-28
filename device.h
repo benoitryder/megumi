@@ -179,6 +179,13 @@ class Device
    */
   bool processPendingInterrupts();
 
+  using OpcodeFunc = unsigned int(*)(Device&, uint16_t);
+
+  /// Map of opcode implementations
+  std::array<OpcodeFunc, 0x10000> opcode_map_;
+
+  friend struct OpcodeDetail;
+
  protected:
   // Memory map
   static constexpr memptr_t MEM_MAX_SIZE = 0x1000000;

@@ -3,6 +3,8 @@
 
 #include "../block.h"
 
+struct OpcodeDetail;
+
 namespace block {
 
 
@@ -11,6 +13,7 @@ namespace block {
 class PMIC: public Block
 {
   friend class ::Device;
+  friend struct ::OpcodeDetail;
   static constexpr ioptr_t IO_SIZE = 3;
 
  public:
