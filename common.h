@@ -97,7 +97,7 @@ struct BitField
 
 /// Convert unsigned value to signed, the portable way
 template <typename S, typename U, unsigned nbits=std::numeric_limits<U>::digits>
-S unsigned_to_signed(U v) {
+constexpr S unsigned_to_signed(U v) {
   static_assert(std::numeric_limits<S>::is_signed, "S is not signed");
   static_assert(!std::numeric_limits<U>::is_signed, "U is not unsigned");
   static_assert(std::numeric_limits<S>::digits >= (int)nbits-1, "S non-sign part is shorter than nbits");
@@ -105,13 +105,13 @@ S unsigned_to_signed(U v) {
   return (v & (1 << (nbits-1))) ? (S)v - (1 << nbits) : v;
 }
 
-template <unsigned nbits> int16_t u8_to_s8(uint8_t v) {
+template <unsigned nbits> constexpr int16_t u8_to_s8(uint8_t v) {
   return unsigned_to_signed<int8_t, uint8_t, nbits>(v);
 };
-template <unsigned nbits> int16_t u16_to_s16(uint16_t v) {
+template <unsigned nbits> constexpr int16_t u16_to_s16(uint16_t v) {
   return unsigned_to_signed<int16_t, uint16_t, nbits>(v);
 };
-template <unsigned nbits=8> int16_t u8_to_s16(uint8_t v) {
+template <unsigned nbits=8> constexpr int16_t u8_to_s16(uint8_t v) {
   return unsigned_to_signed<int16_t, uint8_t, nbits>(v);
 };
 
