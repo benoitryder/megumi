@@ -132,17 +132,17 @@ class Device
   std::vector<uint16_t>& flash_data() { return flash_data_; }
 
   /// Read data memory value
-  uint8_t getDataMem(memptr_t addr);
+  uint8_t getDataMem(memptr_t addr) const;
   /// Write data memory value
   void setDataMem(memptr_t addr, uint8_t v);
 
   /// Read I/O memory value
-  uint8_t getIoMem(ioptr_t addr);
+  uint8_t getIoMem(ioptr_t addr) const;
   /// Write I/O memory value
   void setIoMem(ioptr_t addr, uint8_t v);
 
   /// Read internal emulator value
-  uint8_t getEmulatorMem(memptr_t addr);
+  uint8_t getEmulatorMem(memptr_t addr) const;
   /// Write internal emulator value
   void setEmulatorMem(memptr_t addr, uint8_t v);
 

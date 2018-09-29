@@ -1779,7 +1779,7 @@ void Device::setPC(flashptr_t pc)
 }
 
 
-uint8_t Device::getDataMem(memptr_t addr)
+uint8_t Device::getDataMem(memptr_t addr) const
 {
   if(addr < MEM_IO_SIZE) {
     return Device::getIoMem(addr);
@@ -1816,7 +1816,7 @@ void Device::setDataMem(memptr_t addr, uint8_t v)
   }
 }
 
-uint8_t Device::getIoMem(ioptr_t addr)
+uint8_t Device::getIoMem(ioptr_t addr) const
 {
   Block* const block = io_blocks_[addr];
   if(block == NULL) {
@@ -1836,7 +1836,7 @@ void Device::setIoMem(ioptr_t addr, uint8_t v)
   block->setIo(addr - block->io_addr(), v);
 }
 
-uint8_t Device::getEmulatorMem(memptr_t addr)
+uint8_t Device::getEmulatorMem(memptr_t addr) const
 {
   uint16_t offset = addr - MEM_EMULATOR_START;
   switch(offset) {
