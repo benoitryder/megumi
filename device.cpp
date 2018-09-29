@@ -1645,7 +1645,7 @@ IntLvl Device::currentIntLvl() const
 void Device::loadFlash(const std::vector<uint8_t>& data)
 {
   if(data.size() > 2*flash_data_.size()) {
-    throw DeviceConfigurationError(*this, "flash data to load is too large");
+    throw DeviceConfigurationError(*this, fmt::format("flash data to load is too large: got 0x{:X}, max is 0x{:X}", data.size(), 2*flash_data_.size()));
   }
   if(data.size() % 2 != 0) {
     throw DeviceConfigurationError(*this, "flash data not aligned on words");

@@ -15,7 +15,11 @@ class hex_parsing_error: public std::exception
   const char* what() const noexcept override
   {
     if(what_.empty()) {
-      what_ = fmt::format("line {}:{}", lineno_, msg_);
+      if(lineno_) {
+        what_ = fmt::format("line {}:{}", lineno_, msg_);
+      } else {
+        what_ = msg_;
+      }
     }
     return what_.c_str();
   }
@@ -40,7 +44,15 @@ static int parse_hex_digit(char c)
 std::vector<uint8_t> parse_hex_file(const std::string& filename)
 {
   std::ifstream fin(filename);
-  std::vector<uint8_t> ret;
+
+  // store chunks of data, then merge them
+  // this allows to check for overlaps
+  struct Chunk {
+    uint32_t addr;
+    std::vector<uint8_t> data;
+    uint32_t addr_end() const { return addr + data.size(); }
+  };
+  std::vector<Chunk> chunks;
 
   std::string line;
   unsigned int lineno = 0;
@@ -95,13 +107,15 @@ std::vector<uint8_t> parse_hex_file(const std::string& filename)
 
     uint16_t address = (bytes[1] << 8) + bytes[2];
     switch(bytes[3]) {
-      case 0:  // data
-        if(address < ret.size()) {
-          throw hex_parsing_error(lineno, "address decreased");
+      case 0: {  // data
+        uint32_t data_addr = address | ex_addr_mask;
+        if(data_addr >= 0x800000) {
+          break;  // RAM data, ignore
         }
-        ret.resize(address, 0xff);
-        ret.insert(ret.end(), bytes.begin()+4, bytes.begin()+4+byte_count);
+        const std::vector<uint8_t> chunk_data(bytes.begin() + 4, bytes.begin() + 4 + byte_count);
+        chunks.push_back({data_addr, std::move(chunk_data)});
         break;
+      }
 
       case 1:  // end of file
         if(byte_count != 0)  {
@@ -120,7 +134,7 @@ std::vector<uint8_t> parse_hex_file(const std::string& filename)
         if((bytes[5] & 0xf) != 0) {
           throw hex_parsing_error(lineno, "extended segment address least-signficant digit must be 0");
         }
-        ex_addr_mask &= ~0x0ffff0;
+        ex_addr_mask &= ~0x000ffff0;
         ex_addr_mask |= (((uint32_t)bytes[4] << 8) + bytes[5]) << 4;
         break;
 
@@ -138,7 +152,7 @@ std::vector<uint8_t> parse_hex_file(const std::string& filename)
         if((bytes[5] & 0xf) != 0) {
           throw hex_parsing_error(lineno, "extended linear address least-signficant digit must be 0");
         }
-        ex_addr_mask &= 0xffff;
+        ex_addr_mask &= 0x0000ffff;
         ex_addr_mask |= (((uint32_t)bytes[4] << 8) + bytes[5]) << 16;
         break;
 
@@ -149,6 +163,27 @@ std::vector<uint8_t> parse_hex_file(const std::string& filename)
       default:
         throw hex_parsing_error(lineno, "invalid record type");
     }
+  }
+
+  // sort chunks, check for overlaps and merge them
+  if(chunks.empty()) {
+    throw hex_parsing_error(0, "no data");
+  }
+  std::sort(chunks.begin(), chunks.end(), [](const auto& a, const auto& b) { return a.addr < b.addr; });
+
+  uint32_t total_size = chunks.back().addr_end();
+  // align the end if needed
+  if(total_size % 2 == 1) {
+    total_size += 1;
+  }
+  std::vector<uint8_t> ret(total_size, 0xff);
+
+  uint32_t previous_addr = 0;
+  for(auto const& chunk : chunks) {
+    if(chunk.addr < previous_addr) {
+      throw hex_parsing_error(0, fmt::format("data overlap at {}", chunk.addr));
+    }
+    std::copy(chunk.data.begin(), chunk.data.end(), ret.begin() + chunk.addr);
   }
 
   return ret;
