@@ -7,42 +7,16 @@
 #include <vector>
 #include <array>
 #include <set>
-#include <memory>
-#include <functional>
 #include <stdexcept>
 #include <boost/property_tree/ptree_fwd.hpp>
 #include "common.h"
+#include "clock.h"
 #include "block.h"
 #include "block/cpu.h"
 #include "block/clk.h"
 #include "block/osc.h"
 #include "block/pmic.h"
 #include "block/gpior.h"
-
-
-/// Clock types
-enum class ClockType {
-  SYS, CPU,
-  PER, PER2, PER4,
-  ASY,
-};
-
-/** @brief Callback for clock events
- *
- * The callback return the number of tick before the next execution, or 0 to
- * not reexecute the callback.
- */
-using ClockCallback = std::function<unsigned int()>;
-
-/// Clock event object
-struct ClockEvent {
-  ClockEvent(ClockType clock, ClockCallback callback, unsigned int tick, unsigned int scale):
-      clock(clock), callback(callback), tick(tick), scale(scale) {}
-  ClockType clock; ///< Clock the event is scheduled for
-  ClockCallback callback;  ///< Event callback
-  unsigned int tick;  ///< Due tick
-  unsigned int scale;  ///< Internal ticks per clock ticks
-};
 
 
 class Device
@@ -89,9 +63,6 @@ class Device
    * instructions).
    */
   void step();
-
-  /// Execute a CPU clock cycle
-  unsigned int stepCPU();
 
   /// CCP state bitmask values
   static constexpr uint8_t CCP_IOREG = 0x1;
@@ -147,16 +118,14 @@ class Device
   void setEmulatorMem(memptr_t addr, uint8_t v);
 
   /** @brief Schedule a clock event
+   * @param event  event to schedule
+   * @param ticks  ticks before the next execution, in clock's scale
    *
-   * @param clock  clock the event is scheduled for
-   * @param cb  event callback
-   * @param ticks  ticks before the first execution
-   * @param priority  event priority
-   * @return The created event.
+   * @note Event callbacks must not schedule or unschedule events.
    */
-  const ClockEvent* schedule(ClockType clock, ClockCallback cb, unsigned int ticks=1);
+  void schedule(ClockEvent& event, unsigned int ticks);
   /// Unschedule an event
-  void unschedule(const ClockEvent* ev);
+  void unschedule(const ClockEvent& event);
 
   /// Return frequency of a given clock in Hz
   unsigned int getClockFrequency(ClockType clock) const { return clk_.f_sys_ / getClockScale(clock); }
@@ -169,6 +138,10 @@ class Device
   void onClockConfigChange();
 
  private:
+  /// Execute a CPU clock cycle
+  void stepCPU();
+  ClockEvent step_cpu_event_;
+
   /** @brief Execute the next program instruction
    * @return The number of cycles of the executed instruction
    */
@@ -286,7 +259,7 @@ class Device
   unsigned int clk_sys_tick_;
 
   /// Events scheduled on the SYS clock or derived clocks
-  std::vector<std::unique_ptr<ClockEvent>> clk_sys_events_;
+  std::vector<ClockEvent*> clk_sys_events_;
 
   // blocks
   block::CPU cpu_;

@@ -7,7 +7,8 @@ namespace block {
 
 
 TC::TC(Device& dev, const Instance<TC>& instance):
-    Block(dev, instance.name, instance.io_addr, instance.iv_base)
+    Block(dev, instance.name, instance.io_addr, instance.iv_base),
+    event_(ClockType::PER, [this]() { onEvent(); })
 {
   // set type from block name
   switch(*name().rbegin()) {
@@ -132,11 +133,18 @@ void TC::setIo(ioptr_t addr, uint8_t v)
       prescaler_ = prescalers[v];
       //TODO how is handle a prescaler change when TC is running?
       // reschedule step event
-      if(!prescaler_ && step_event_) {
-        device_.unschedule(step_event_);
-        step_event_ = nullptr;
-      } else if(prescaler_ && !step_event_) {
-        step_event_ = device_.schedule(ClockType::PER, [&]() { return step(); }, prescaler_);
+      if(!prescaler_) {
+        if(event_scheduled_) {
+          device_.unschedule(event_);
+          event_scheduled_ = false;
+        }
+      } else if(prescaler_) {
+        if(!event_scheduled_) {
+          device_.schedule(event_, prescaler_);
+          event_scheduled_ = true;
+        } else {
+          event_.period = prescaler_ * event_.scale;
+        }
       }
     }
   } else if(addr == 0x01) { // CTRLB
@@ -315,12 +323,10 @@ void TC::reset()
   ccbbuf_ = 0;
   cccbuf_ = 0;
   ccdbuf_ = 0;
-
-  step_event_ = nullptr;
 }
 
 
-unsigned int TC::step()
+void TC::onEvent()
 {
   uint8_t wgmode = ctrlb_.wgmode;
   uint8_t top = ctrlb_.wgmode == WGMODE_FRQ ? cca_ : per_;
@@ -392,8 +398,6 @@ unsigned int TC::step()
       setIvLvl(IV_CCD, ccd_intlvl_);
     }
   }
-
-  return prescaler_;
 }
 
 

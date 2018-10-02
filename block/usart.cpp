@@ -456,7 +456,8 @@ void USARTLinkSerial::configure()
 // USART block
 
 USART::USART(Device& dev, const Instance<USART>& instance):
-    Block(dev, instance.name, instance.io_addr, instance.iv_base)
+    Block(dev, instance.name, instance.io_addr, instance.iv_base),
+    event_(ClockType::PER, [this]() { onEvent(); })
 {
   const ConfTree& conf = this->conf();
   std::string link_type = conf.get<std::string>("link_type", "");
@@ -541,14 +542,15 @@ void USART::setIo(ioptr_t addr, uint8_t v)
     if(status_.dreif) setIvLvl(IV_DRE, dre_intlvl_);
   } else if(addr == 0x04) { // CTRLB
     ctrlb_.data = v & 0x1F;
-    if(step_event_) {
+    if(event_scheduled_) {
       if(!ctrlb_.txen && !ctrlb_.rxen) {
-        device_.unschedule(step_event_);
-        step_event_ = nullptr;
+        device_.unschedule(event_);
+        event_scheduled_ = false;
       }
     } else {
       if(ctrlb_.txen || ctrlb_.rxen) {
-        step_event_ = device_.schedule(ClockType::PER, [&]() { return step(); });
+        device_.schedule(event_, 1);
+        event_scheduled_ = true;
       }
     }
   } else if(addr == 0x05) { // CTRLC
@@ -614,14 +616,13 @@ void USART::reset()
   baudscale_ = 0;
   rxb_ = 0;
   txb_ = 0;
-  step_event_ = nullptr;
   configure();
   next_recv_tick_ = 0;
   next_send_tick_ = 0;
 }
 
 
-unsigned int USART::step()
+void USART::onEvent()
 {
   const unsigned int sys_tick = device_.clk_sys_tick();
   if(ctrlb_.rxen && sys_tick >= next_recv_tick_) {
@@ -654,7 +655,6 @@ unsigned int USART::step()
       }
     }
   }
-  return 1;
 }
 
 

@@ -1437,6 +1437,7 @@ struct OpcodeDetail
 
 
 Device::Device(const ModelConf& model, ConfTree& conf):
+    step_cpu_event_(ClockType::CPU, [this]() { stepCPU(); }),
     // memory map
     flash_size_(model.flash_size),
     flash_page_size_(model.flash_page_size),
@@ -1517,7 +1518,7 @@ void Device::reset()
   clk_.reset();
   // CPU step MUST be executed first
   assert(clk_sys_events_.empty());
-  schedule(ClockType::CPU, [&]() { return stepCPU(); });
+  schedule(step_cpu_event_, 1);
 
   // reset blocks
   for(auto block: blocks_) {
@@ -1532,34 +1533,18 @@ void Device::reset()
 
 void Device::step()
 {
-  // When an event is unscheduled, it is removed from clk_sys_events_ and a
-  // "large" part of the vector can be copied. However, after some time, events
-  // likely to be unscheduled will be "pushed" to the end of the vector and
-  // such, faster to be removed.
-  ++clk_sys_tick_;
-  // don't use iterator since callbacks can schedule new events
-  for(size_t i = 0; i < clk_sys_events_.size(); ) {
-    if(!clk_sys_events_[i]) {
-      // event unscheduled using unschedule()
-      clk_sys_events_.erase(clk_sys_events_.begin() + i);
-      continue;
+  const auto tick = ++clk_sys_tick_;
+  // note: callbacks must not change the array
+  for(const auto ev : clk_sys_events_) {
+    if(ev->tick <= tick) {
+      ev->tick += ev->period;
+      ev->callback();
     }
-    auto& ev = *clk_sys_events_[i];
-    if(ev.tick <= clk_sys_tick_) {
-      const unsigned int next = ev.callback();
-      if(next) {
-        ev.tick += next * ev.scale;
-      } else {
-        clk_sys_events_.erase(clk_sys_events_.begin() + i);
-        continue;  // don't iterate
-      }
-    }
-    ++i;
   }
 }
 
 
-unsigned int Device::stepCPU()
+void Device::stepCPU()
 {
   //TODO handle halted CPU
 
@@ -1583,7 +1568,6 @@ unsigned int Device::stepCPU()
     interrupt_wait_instruction_ = false;
   }
   instruction_cycles_--;
-  return 1;
 }
 
 
@@ -1857,38 +1841,43 @@ void Device::setEmulatorMem(memptr_t addr, uint8_t)
 }
 
 
-const ClockEvent* Device::schedule(ClockType clock, ClockCallback cb, unsigned int ticks)
+void Device::schedule(ClockEvent& event, unsigned int ticks)
 {
-  assert(cb);
-  unsigned int scale = getClockScale(clock);
-  clk_sys_events_.push_back(std::make_unique<ClockEvent>(clock, cb, (clk_sys_tick_/scale+ticks) * scale, scale));
-  return clk_sys_events_.rbegin()->get();
+  const unsigned int scale = getClockScale(event.clock);
+  event.period = ticks * scale;
+  event.tick = (clk_sys_tick_/scale + ticks) * scale;
+  event.scale = scale;
+  clk_sys_events_.push_back(&event);
 }
 
-void Device::unschedule(const ClockEvent* ev)
+void Device::unschedule(const ClockEvent& event)
 {
-  // clear the element, null ptr will be reset on next step() loop
-  //TODO check if events can be unscheduled by CPU on their due tick
+  // When an event is unscheduled, it is removed from clk_sys_events_ and a
+  // "large" part of the vector can be copied. However, after some time, events
+  // likely to be unscheduled will be "pushed" to the end of the vector and
+  // such, faster to be removed.
+  // Moreover, removals should rarely happen in a typical program.
   for(auto it=clk_sys_events_.begin(); it!=clk_sys_events_.end(); ++it) {
-    if(it->get() == ev) {
-      it->reset();
+    if(*it == &event) {
+      clk_sys_events_.erase(it);
       return;
     }
   }
-  logger->error("cannot unschedule event: not found");
+  logger->critical("cannot unschedule event: not found");
 }
 
 
 void Device::onClockConfigChange()
 {
   for(auto& ev: clk_sys_events_) {
-    unsigned int scale = getClockScale(ev->clock);
+    const unsigned int scale = getClockScale(ev->clock);
     if(ev->scale == scale) {
       continue; // nothing to do
     }
     // this method should only be called on slowest clock tick
     assert((ev->tick - clk_sys_tick_) % ev->scale == 0);
-    unsigned int dt = (ev->tick - clk_sys_tick_ + ev->scale-1) / ev->scale;
+    const unsigned int dt = (ev->tick - clk_sys_tick_ + ev->scale-1) / ev->scale;
+    ev->period = (ev->period / ev->scale) * scale;
     ev->tick = clk_sys_tick_ + dt * scale;
     ev->scale = scale;
   }

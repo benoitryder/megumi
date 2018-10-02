@@ -3,6 +3,7 @@
 
 #include <memory>
 #include "../block.h"
+#include "../clock.h"
 
 namespace block {
 
@@ -32,7 +33,6 @@ class TC: public Block
   void setIo(ioptr_t addr, uint8_t v) override;
   void executeIv(ivnum_t iv) override;
   void reset() override;
-  unsigned int step();
 
   /// Return TC type (0 or 1)
   unsigned int type() const { return type_; }
@@ -130,8 +130,10 @@ class TC: public Block
   uint16_t cccbuf_;
   uint16_t ccdbuf_;
 
-  // Scheduled step() event
-  const ClockEvent* step_event_;
+  /// Events callback, handle counter ticks
+  void onEvent();
+  ClockEvent event_;
+  bool event_scheduled_ = false;
 };
 
 

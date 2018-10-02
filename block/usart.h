@@ -3,6 +3,7 @@
 
 #include <memory>
 #include "../block.h"
+#include "../clock.h"
 
 namespace block {
 
@@ -73,7 +74,6 @@ class USART: public Block
   void setIo(ioptr_t addr, uint8_t v) override;
   void executeIv(ivnum_t iv) override;
   void reset() override;
-  unsigned int step();
 
   /// Parity values
   enum class Parity { NO, EVEN, ODD };
@@ -136,8 +136,10 @@ class USART: public Block
   uint8_t rxb_;
   uint8_t txb_;
 
-  // Scheduled step() event
-  const ClockEvent* step_event_;
+  /// Event callback, handle recv/send
+  void onEvent();
+  ClockEvent event_;
+  bool event_scheduled_ = false;
 
   std::unique_ptr<USARTLink> link_;
   unsigned int frame_sys_ticks_; ///< SYS ticks per frame

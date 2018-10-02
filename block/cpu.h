@@ -2,6 +2,7 @@
 #define BLOCK_CPU_H
 
 #include "../block.h"
+#include "../clock.h"
 
 struct OpcodeDetail;
 
@@ -27,7 +28,6 @@ class CPU: public Block
   uint8_t getIo(ioptr_t addr) override;
   void setIo(ioptr_t addr, uint8_t v) override;
   void reset() override;
-  unsigned int step();
 
   /// Return CCP state as read in the I/O register
   uint8_t ccpState() const {
@@ -67,6 +67,10 @@ class CPU: public Block
    * The new value is buffered for more accurate cycle timeout.
    */
   uint8_t ccp_buffer_;
+
+  /// Event callback, handle CCP
+  void onEvent();
+  ClockEvent event_;
 };
 
 

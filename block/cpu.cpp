@@ -9,7 +9,8 @@ namespace block {
 CPU::CPU(Device& dev):
     Block(dev, "CPU", 0x0030),
     ramp_mask_((dev.mem_exsram_start_ + dev.mem_exsram_size_) >> 8),
-    eind_mask_(dev.flash_size_ >> 9)
+    eind_mask_(dev.flash_size_ >> 9),
+    event_(ClockType::PER, [this]() { onEvent(); })
 {
 }
 
@@ -81,10 +82,11 @@ void CPU::reset()
   sp_ = device_.mem_exsram_start_-1;
   sreg_.data = 0;
   pc_ = 0; //TODO may start on bootloader
-  device_.schedule(ClockType::PER, [&]() { return step(); });
+
+  device_.schedule(event_, 1);
 }
 
-unsigned int CPU::step()
+void CPU::onEvent()
 {
   //TODO check execution order: decrement before/after instructions?
   if(ccp_ioreg_cycles_ > 0) {
@@ -101,7 +103,6 @@ unsigned int CPU::step()
     ccp_spm_cycles_ = 4;
     ccp_buffer_ = 0;
   }
-  return 1;
 }
 
 

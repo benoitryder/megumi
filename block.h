@@ -8,7 +8,6 @@
 #include "log.h"
 
 class Device;
-class ClockEvent;
 
 
 /** @brief XMEGA block

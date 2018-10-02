@@ -25,7 +25,6 @@ class PMIC: public Block
   uint8_t getIo(ioptr_t addr) override;
   void setIo(ioptr_t addr, uint8_t v) override;
   void reset() override;
-  unsigned int step();
 
  private:
   union {

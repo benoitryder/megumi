@@ -48,12 +48,7 @@ void PMIC::reset()
 {
   status_.data = 0;
   ctrl_.data = 0;
-  //TODO device_.schedule(ClockType::PER, [&]() { return step(); });
-}
-
-unsigned int PMIC::step()
-{
-  return 0; //TODO update status bits on RETI
+  //TODO schedule a PER event to update status bits on RETI
 }
 
 
